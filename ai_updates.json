@@ -1,10 +1,258 @@
 {
-  "generated_at": "2026-10-10",
+  "generated_at": "2026-10-11",
   "tools": [
     {
       "id": "claude_code",
       "name": "Claude Code",
       "versions": [
+        {
+          "version": "2.1.296",
+          "period": "2026-10-09",
+          "items": [
+            {
+              "title": {
+                "zh-TW": "Read 工具可單次讀取超大文字檔",
+                "en": "Read Tool Supports Reading Oversized Text Files in a Single Call"
+              },
+              "body": {
+                "zh-TW": "當你請 Claude 檢視體積龐大的日誌紀錄或長篇資料庫檔案時，常會因為檔案超出單次讀取上限而被迫分段翻閱。⟦如同搬家時遇到整件大型衣櫃，以前工人只能拆解成好幾包分趟搬運，現在只要走道空間夠寬敞就能整件直接搬進屋內。⟧這次替 Read 工具新增了 `allow_large` 選項。只要模型上下文還有充裕空間，而且確實需要完整檔案內容，Claude 就能在單次呼叫中直接讀取超過平時大小限制的文字檔，省去來回拼湊零碎段落的等待。",
+                "en": "When you ask Claude to inspect massive log files or long database dumps, you are often forced to read through them in multiple chunks because the file exceeds the single-read size limit. ⟦Like moving an oversized wardrobe into a new home where movers previously had to disassemble it into several boxes and haul them across multiple trips, you can now carry it straight into the house in one piece as long as the hallway offers enough room.⟧ This update adds an `allow_large` option to the Read tool. As long as there is ample space remaining in the model context and the complete file contents are genuinely required, Claude can now directly read text files exceeding normal size limits in a single call, eliminating the wait for assembling fragmented excerpts back and forth."
+              },
+              "original": "Added an `allow_large` option to the Read tool so Claude can read a text file past the usual size limits in one call when it needs the whole file and the context has room"
+            },
+            {
+              "title": {
+                "zh-TW": "子代理支援提前自動壓縮記憶並修復中斷誤報",
+                "en": "Subagents Support Early Auto-Compaction and Fix Interruption Misreports"
+              },
+              "body": {
+                "zh-TW": "當你指派子代理處理大量繁重的研究分支時，背景助理的對話紀錄常常比主線更快塞滿記憶空間。⟦好比辦公室裡負責剪報的助理，以前必須等整個部門的總檔案夾塞滿才能一起整理，現在可以在自己的小抽屜放滿時就先清空過期紙條。⟧現在你在子代理的 frontmatter 或 `--agents` 參數定義中，可以加入 `autoCompactWindow` 設定，讓子代理比主對話更早觸發自動壓縮。同時，當工作階段關閉導致工具呼叫中斷時，重新啟動的子代理不會再誤以為是使用者按下了拒絕。如果你在自訂代理檔案中打錯了標頭欄位名稱，開啟 `--debug` 時主控台也會直接標示無法識別的欄位，並附上可能拼錯的文字提示。",
+                "en": "When you dispatch subagents to handle heavy research branches, the background assistant's conversation history often fills up memory space faster than the main conversation. ⟦Think of an office assistant clipping newspapers who previously had to wait for the entire department's master binder to fill up before archiving, but can now clear out stale notes whenever their own small desk drawer gets full.⟧ You can now add an `autoCompactWindow` setting in a subagent's frontmatter or `--agents` flag definition, triggering automatic compaction for the subagent earlier than in the primary session. Additionally, when a tool call is interrupted by closing the session, restarting the subagent will no longer mistake the interruption for a user rejection. If you mistype a header field name in a custom agent file, the console will now directly flag unrecognized fields when running with `--debug`, complete with suggestions for potential typos."
+              },
+              "original": "Added `autoCompactWindow` to subagent frontmatter and `--agents` definitions, so a subagent can auto-compact earlier than the main conversation's window\nFixed resumed subagents being told that the user rejected a tool call that a session shutdown had interrupted\nImproved `--debug` output to name unrecognized frontmatter fields in custom agent files, with a hint for likely typos"
+            },
+            {
+              "title": {
+                "zh-TW": "工作流程代理可獨立指定模型並支援深層資料結構",
+                "en": "Workflow Subagents Support Independent Model Selection and Deep Data Structures"
+              },
+              "body": {
+                "zh-TW": "當你在專案中串接自動化腳本時，可能希望讓流程中的每個任務都統一使用特定模型，而不影響其他自訂代理的原有配置。⟦彷彿工廠特設了一條標準裝配線，以前每位技師都只能依照個別工具箱挑選工具，現在整條產線能統一規格運作，處理多層零件時也不會在中途截斷。⟧新增的環境變數 `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` 能讓所有工作流程代理切換到同一款模型執行，其餘子代理則繼續維持各自設定。針對複雜資料，以前工作流程腳本在處理巢狀深度超過兩萬層的結果、代理選項或其他數值時，會無預警截斷內容或產生龐大的任務輸出檔，現在這項限制已獲得修正。同時，Workflow 工具不再拒絕從 Windows 環境簽出、包含 CRLF 換行字元的腳本檔案。",
+                "en": "When chaining automation scripts in your projects, you might want every task in the pipeline to consistently use a specific model without altering existing configurations of other custom agents. ⟦Picture a factory setting up a dedicated assembly line where technicians previously had to choose tools individually from their own boxes, but the entire line can now operate under unified standards without truncating parts across multi-tiered assemblies midway.⟧ The newly introduced `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` environment variable allows all workflow agents to switch to the same model, while remaining subagents retain their respective settings. For complex data, an issue where workflow scripts unexpectedly truncated content or produced massive task outputs when handling nested results, agent options, or other values deeper than 20,000 levels has now been corrected. Furthermore, the Workflow tool no longer rejects script files checked out from Windows environments that contain CRLF line endings."
+              },
+              "original": "Added `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` to run every workflow agent on one model while other subagents keep theirs\nFixed workflow scripts silently truncating results, agent options and other values nested deeper than about 20,000 levels, and deeply nested results writing huge task output files\nFixed the Workflow tool refusing script files with CRLF line endings, such as files checked out on Windows"
+            },
+            {
+              "title": {
+                "zh-TW": "企業閘道支援桌面端 Code 政策並修復登入鎖定",
+                "en": "Enterprise Gateway Supports Desktop Code Policy and Fixes Login Lockouts"
+              },
+              "body": {
+                "zh-TW": "企業 IT 人員統一部署安全連線時，能透過中央政策同時控管命令列與桌面端工具。Claude apps gateway 受控政策新增 `code` 鍵值，套用與 `cli` 相同設定並在桌面端 Code 標籤頁生效，搭配 `desktop` 還能啟用桌面端閘道模式。若閘道許可提供者包含 `\"gateway\"`，先前在設定指定該閘道的筆電被鎖在門外的問題已修復。受控設定強制以 `gateway` 登入卻未指定 `forceLoginGatewayUrl` 時，先前登入狀態被忽略的問題也已修正。針對 Haiku 5.5 等自適應思考模型，部分閘道計算 token（AI 處理與計費的文字單位）失敗或誤計為預算思考的情況已修復。桌面端工作階段若無法啟動，原因現在會直接以回覆顯示。",
+                "en": "When enterprise IT administrators deploy secure connections centrally, managed policies allow them to govern command-line and desktop tools simultaneously. The Claude apps gateway managed policy adds a `code` key that applies the same settings as `cli` to take effect in the desktop Code tab, and pairing it with `desktop` enables desktop gateway mode. When permitted gateway providers include `\"gateway\"`, an issue where laptops specifying that gateway in settings were locked out has been fixed. When managed configurations mandate logging in via `gateway` without defining `forceLoginGatewayUrl`, an issue where login status was ignored has also been resolved. For adaptive thinking models such as Haiku 5.5, cases where certain gateways failed to calculate tokens (units of text used by AI for processing and billing) or miscounted them as budgeted thinking have been fixed. If a desktop session fails to launch, the exact reason is now directly shown as a response."
+              },
+              "original": "Added a `code` key to the Claude apps gateway's `managed.policies[]`: the same settings as `cli`, also applied in Claude Desktop's Code tab; beside `desktop`, it turns on Claude Desktop's gateway mode\nFixed a Claude apps gateway that serves `allowedProviders` with `\"gateway\"` locking out laptops that name that gateway in user settings\nFixed a saved Claude apps gateway sign-in being ignored on machines whose managed settings set `forceLoginMethod` to `gateway` with no `forceLoginGatewayUrl` (regression in 2.1.295)\nFixed token counts for Haiku 5.5 and other models that take only adaptive thinking, which failed behind some gateways and were counted with budget thinking elsewhere\nImproved Claude Desktop's Code tab behind a Claude apps gateway: when a session can't start, including on a machine not set up for the gateway's `code` settings, the reason shows as a reply"
+            },
+            {
+              "title": {
+                "zh-TW": "MCP 說明長度上限放寬為兩倍並修正載入問題",
+                "en": "MCP Description Character Limit Doubled and Loading Issues Fixed"
+              },
+              "body": {
+                "zh-TW": "當你依賴外部工具擴充功能時，工具本身的參數說明現在可以寫得更詳盡。系統一開始傳遞給模型的前置 MCP（Model Context Protocol，讓 AI 連接外部工具的協定）工具說明與伺服器指引，預設長度上限已從原本的 2,048 個字元調高至 4,096 個字元。在無頭模式（沒有終端機視窗的執行模式）的工作階段中，切換目錄或重新載入外掛後，以前會錯誤啟動該資料夾原本已關閉的 `.mcp.json` 或外掛 MCP 伺服器，現在已修正。在環境變數啟用中斷回溯時，如果中斷前是由 MCP 工具回傳結果結束輪次，重新啟動後不會再錯誤重跑已完成的輪次。當 MCP 伺服器需要驗證時，雲端工作階段也不會再被誤判為非互動式而跳出無效的本機設定建議。",
+                "en": "When you rely on external tools for feature extensions, parameter descriptions for tools can now be written with much greater detail. The default maximum length for initial MCP (Model Context Protocol, a standard connecting AI to external tools) tool descriptions and server instructions passed to the model has been increased from 2,048 characters to 4,096 characters. In headless sessions, an issue where switching directories or reloading plugins erroneously started disabled `.mcp.json` or plugin MCP servers from that directory has been resolved. When interrupt rewind is enabled via environment variable, restarting will no longer mistakenly rerun completed turns if the turn previously ended with an MCP tool result. When an MCP server requires authentication, cloud sessions will no longer be misidentified as non-interactive and trigger invalid local setup suggestions."
+              },
+              "original": "Fixed headless sessions starting a folder's `.mcp.json` or plugin MCP server that was switched off for that folder, after changing directory or reloading plugins\nFixed `CLAUDE_CODE_RESUME_INTERRUPTED_TURN` re-running a finished turn after a restart when an MCP tool result had ended that turn\nFixed Claude calling cloud sessions non-interactive and suggesting `/mcp` or `claude mcp` when an MCP server needs authentication\nChanged the default limit on MCP tool descriptions sent up front and on MCP server instructions from 2,048 to 4,096 characters"
+            },
+            {
+              "title": {
+                "zh-TW": "自動模式改善未執行提示並修復工件更新誤判",
+                "en": "Auto Mode Refines Unexecuted Prompts and Fixes Artifact Modification Rejections"
+              },
+              "body": {
+                "zh-TW": "讓 Claude 自主執行一連串任務時，操作介面對工具執行狀態的呈現現在更友善。在自動模式下，如果某次工具呼叫因為檢查程序沒有可用答案而未被執行，畫面不再直接亮起鮮紅色的錯誤訊息，而是改以灰暗的「Not run」列呈現。而在雲端工作階段中，若功能旗標尚未載入完成，即使已儲存允許權限，自動模式有時仍會跳過對 Chrome 瀏覽器操作的檢查，這項漏洞現已補正。而編輯自己產出的工件時，偶爾會被系統誤指分享狀態改變而遭到拒絕的問題，也已徹底修復。",
+                "en": "When letting Claude autonomously execute sequences of tasks, the interface presentation of tool execution states is now much clearer. Under auto mode, if a tool call remains unexecuted because checks have no available answer, the screen no longer flashes a bright red error message, displaying a muted \"Not run\" row instead. In cloud sessions, auto mode previously bypassed checks on Chrome browser actions when feature flags had not finished loading even after permissions were saved, a loophole that is now plugged. Additionally, an issue where editing your own generated artifacts occasionally met with rejections due to the system mistakenly claiming a change in share state has been completely resolved."
+              },
+              "original": "Fixed cloud sessions skipping auto mode's checks on Claude in Chrome actions that a saved permission allows when their feature flags had not loaded\nFixed auto mode occasionally refusing one update to your own artifact, saying its sharing had changed when it had not\nImproved auto mode: a tool call that wasn't run because auto mode's check had no usable answer now shows as a dim \"Not run\" row instead of a red error"
+            },
+            {
+              "title": {
+                "zh-TW": "強化指令權限把關並拒絕非 UTF-8 檔案破壞性編輯",
+                "en": "Stricter Command Permission Checks and Rejection of Non-UTF-8 Edits"
+              },
+              "body": {
+                "zh-TW": "當你將除錯日誌分享給團隊或執行自動修改程式碼時，系統對敏感資訊與特殊編碼檔案的保護更加周全。⟦好似嚴格的公文保密審查員，以前遇到空白欄位後面的機密附錄偶爾會漏蓋塗黑章，面對非本地語言的古籍更是整篇塗改，現在這些漏洞皆已逐一補齊。⟧在分享的對話紀錄與除錯日誌中，機密遮蔽功能過去若遇到沒有數值的鍵名，接在其後的值或寫在 Shell 字串內的 JSON 可能會漏未隱藏，現在都會遮蔽。安全防護上，若 Bash 指令對 `BASH_ARGV0` 變數賦值隨後呼叫，以前權限檢查可能自動放行，這類指令現在會跳出提示請求使用者確認。而 Edit 與 NotebookEdit 工具遇到 Windows-1252、Shift-JIS 或 GBK 等非有效 UTF-8 的檔案時，以前會把非 ASCII 字元全數置換，現在會直接拒絕編輯，避免毀損原始內容。",
+                "en": "When you share debug logs with teammates or run automated code edits, protections for sensitive information and non-standard encoded files are now more comprehensive. ⟦A strict document redaction officer who previously missed stamping confidential appendices following empty fields and completely scribbled over ancient non-native manuscripts now has every loophole patched.⟧ In shared conversation histories and debug logs, secret redaction previously missed values following empty keys or JSON embedded in shell strings, all of which are now masked. For security enforcement, Bash commands that assign to `BASH_ARGV0` right before invocation previously bypassed permission checks automatically, but now prompt the user for confirmation. Meanwhile, when the Edit and NotebookEdit tools encounter files with invalid UTF-8 encodings such as Windows-1252, Shift-JIS, or GBK, they now outright reject edits rather than replacing non-ASCII characters and corrupting original contents."
+              },
+              "original": "Fixed secret redaction in shared transcripts and debug logs missing some values that follow a key with no value, including in JSON written inside a shell string\nFixed Bash permission checks auto-approving some commands that assign the `BASH_ARGV0` shell variable and then use it; these now prompt for approval\nFixed Edit and NotebookEdit replacing every non-ASCII character in files that are not valid UTF-8 (Windows-1252, Shift-JIS, GBK); such edits are now refused"
+            },
+            {
+              "title": {
+                "zh-TW": "歷史紀錄切換更流暢並修復特殊分隔符清理問題",
+                "en": "Smoother History Switching and Fixes for Special Separator Purges"
+              },
+              "body": {
+                "zh-TW": "在包含大量程式碼的長篇對話中按快捷鍵切換紀錄時，視窗畫面的反應速度現在變得更快。透過快取（把算過的結果暫存起來直接用）語法醒目標示的程式碼區塊，按 Ctrl+O 切換對話紀錄時不再感到延遲。本地垃圾回收機制遇到大型紀錄檔時，若重寫所能釋放的空間低於一成，將不再耗費資源重新寫入檔案。另外，先前當文字內容包含 Unicode 行或段落分隔符號 U+2028 或 U+2029 時，本地垃圾清理會遺失該則訊息，而執行 `claude purge` 也會殘留該提示詞，這兩個問題皆已修復。最後，使用 `--teleport` 時若無法讀取工作階段紀錄，也不再出現開啟空白對話的異常現象。",
+                "en": "When using shortcut keys to switch conversation histories in long sessions packed with code snippets, window rendering is now significantly faster. By caching syntax-highlighted code blocks, pressing Ctrl+O to cycle through history no longer feels laggy. When inspecting large log files, local garbage collection will skip rewrites if the reclaimable space is less than 10%, avoiding unnecessary disk writes. Furthermore, an issue where local garbage collection dropped messages containing Unicode line or paragraph separators U+2028 or U+2029, as well as an issue where running `claude purge` left such prompts behind, have both been resolved. Finally, sessions failing to load history when using `--teleport` will no longer anomalously open blank conversations."
+              },
+              "original": "Fixed `--teleport` opening an empty conversation when the session's history could not be read\nFixed `CLAUDE_CODE_TRANSCRIPT_LOCAL_GC` dropping a message from the saved transcript when its text held a Unicode line or paragraph separator (U+2028, U+2029)\nFixed `claude purge` leaving a prompt in the history file when its text held a Unicode line or paragraph separator (U+2028, U+2029)\nImproved transcript toggle (ctrl+o) responsiveness in code-heavy conversations by caching syntax-highlighted code blocks\nImproved `CLAUDE_CODE_TRANSCRIPT_LOCAL_GC`: a large transcript file is no longer rewritten when that would free under 10% of it"
+            },
+            {
+              "title": {
+                "zh-TW": "背景切換中斷未完成指令並修正終端機殘留字元",
+                "en": "Background Toggle Aborts In-Flight Commands and Fixes Terminal Ghost Characters"
+              },
+              "body": {
+                "zh-TW": "當你使用方向鍵將當前對話推到背景執行時，背景服務的處理行為現在更加可預測。以前按下左方向鍵 `←` 將工作階段切換至背景時，剛啟動的輪次或以 `!` 開頭的 Shell 指令會在背後默默執行完畢，現在則會立即停止執行。針對輸入時機的異常也做了嚴格防護：若在按 `←` 後立刻送出提示詞且背景服務回應緩慢，過去可能在前景與背景各跑一次，現在不再重複送出。而在啟動階段的掛鉤仍在執行時按 `←` 導致輸入內容消失的問題，現在也能透過上方向鍵 `↑` 找回。在介面顯示方面，全螢幕模式下游標懸停的連結會加上底線提示。開啟 `/diff` 面板時不會再卡住通知訊息。在 MATE 等終端機中複製文字時印出 `52;c;…` 亂碼跳脫字元的瑕疵也已修正。",
+                "en": "When using arrow keys to push an active conversation to the background, background handling behavior is now far more predictable. Previously, pressing the left arrow `←` to background a session allowed newly started turns or shell commands prefixed with `!` to continue running silently, but they are now aborted immediately. Strict safeguards are also in place for input timing: submitting a prompt immediately after pressing `←` while the background service is slow to respond no longer duplicates runs across foreground and background. Input dropped after pressing `←` while startup hooks are still executing can now be recovered using the up arrow `↑`. On the visual side, hovered links in full-screen mode now display an underline. Opening the `/diff` panel no longer blocks notifications. An issue causing garbage escape sequences like `52;c;…` when copying text in terminals such as MATE has also been fixed."
+              },
+              "original": "Fixed a stray `52;c;…` escape sequence printed on screen after copying in older VTE-based terminals such as MATE Terminal\nFixed toasts and notifications waiting unseen for as long as the `/diff` panel or dialog was open\nFixed a prompt sent just after `←` being run twice, once unseen in the foreground, when the background service was slow to answer\nFixed a prompt sent while SessionStart hooks were still running vanishing when `←` moved the session to the background; it is still not sent, but `↑` now brings it back\nImproved fullscreen mode: the link under the mouse pointer is now underlined to show it can be opened\nChanged `←`: a turn or `!` command started while the session moves to the background is now stopped instead of finishing out of sight"
+            },
+            {
+              "title": {
+                "zh-TW": "外掛市集防範特殊保留字並修正跨裝置同步迴圈",
+                "en": "Plugin Marketplaces Guard Reserved Words and Fix Multi-Device Sync Loops"
+              },
+              "body": {
+                "zh-TW": "當你從雲端同步外掛或跨作業系統共用設定時，外掛安裝流程現在更加穩健。⟦宛若物流倉庫的貨品入庫登記系統，以前遇到貨品代碼恰好叫「系統保留」的特規件就系統當機，多個分店共用庫存時還會重複下單，現在系統能精準辨識這些特殊命名與同步檔案。⟧過去若市集名稱命名為 `constructor`，執行市集新增、更新或外掛安裝時會引發內部錯誤，現在新增指令會明確拒絕該名稱。同時，名稱為 `constructor` 或 `prototype` 的外掛金鑰，也不會再因為儲存選項而被誤刪。在多個工作階段共用設定目錄的情境下，從 claude.ai 同步的技能過去會在每次同步時重新下載、始終裝不完，此問題已獲得解決。而且宣告了市集相依性的外掛在兩者皆從雲端同步時不會再被誤停用。從 Linux 複製外掛路徑至 macOS 時因指向 `/home` 導致啟動卡住的狀況也已修正。",
+                "en": "When synchronizing plugins from the cloud or sharing settings across operating systems, the installation pipeline is now significantly more reliable. ⟦Like a warehouse inventory registry that previously crashed upon encountering special stock labeled \"reserved\" and duplicated orders when branch stores shared stock, the system now accurately recognizes these specific names and synced files.⟧ In the past, naming a marketplace `constructor` triggered internal errors during marketplace addition, updates, or plugin installation; the add command now explicitly disallows this name. At the same time, plugin keys named `constructor` or `prototype` will no longer be inadvertently wiped out when saving settings. In scenarios where multiple sessions share a settings directory, skills synced from claude.ai no longer get downloaded again at every sync without ever finishing their install.ai repeatedly downloaded and never finished installing has been resolved. Plugins declaring marketplace dependencies are also no longer mistakenly disabled when both items are synced from the cloud. A startup freeze caused by copying plugin paths pointing to `/home` from Linux to macOS has also been fixed."
+              },
+              "original": "Fixed `claude plugin marketplace add`, `marketplace update` and `plugin install` failing with an internal error for a marketplace named like `constructor`; `add` now refuses such names clearly\nFixed a plugin secret named `constructor` or `prototype` being deleted by the next save of that plugin's options\nFixed skills synced from claude.ai never finishing their install, and being downloaded again at every sync, when several sessions share a config directory\nFixed a plugin synced from claude.ai being disabled when the marketplace dependency it declares was also synced from claude.ai\nFixed a startup hang on macOS when plugin paths copied from a Linux machine pointed under /home"
+            },
+            {
+              "title": {
+                "zh-TW": "外掛 Hook 增加命名衝突提醒並記錄執行耗時",
+                "en": "Plugin Hooks Add Name Conflict Notices and Track Execution Duration"
+              },
+              "body": {
+                "zh-TW": "開發或啟用多套外掛時，若有程式碼在背後攔截事件，現在能清楚看見各步驟的執行細節。終端機執行 `--debug` 時，針對工具呼叫、提示詞、工作階段啟動與回應結束的指令型 hook（掛鉤，特定事件發生時被觸發的小程式），在執行完成後都會記錄其指令、所屬外掛、執行結果與耗費時間，讓你一眼揪出拖慢速度的掛鉤。若有啟用中的外掛因為與其他外掛同名而導致掛鉤被排除，`/plugin` 清單中現在會主動顯示備註提醒。在無頭模式中，同名或拼法相近之外掛已執行過導致後續載入的外掛啟動掛鉤被略過的問題已修正。在輸入 `/clear` 清除畫面後，延遲載入之外掛輸出字串滲漏至新對話的狀況也已排除。若掛鉤輸出文字恰好長得像外掛提示標籤，內容也不會再遭到非預期的竄改。",
+                "en": "When developing or enabling multiple plugins where background code intercepts events, you can now see the execution details of each step clearly. When running with `--debug` in the terminal, command-type hooks for tool calls, prompts, session starts, and response completions record their executed command, parent plugin, result, and elapsed duration upon completion, making it easy to identify hooks that slow things down. If an enabled plugin has its hooks excluded due to sharing a name with another plugin, the `/plugin` list now displays an explanatory note. In headless mode, an issue where prior execution of an identically named or similarly spelled plugin caused launch hooks of subsequently loaded plugins to be skipped has been fixed. An issue where strings from a lazily loaded plugin leaked into new sessions after running `/clear` has also been resolved. In addition, hook output text that resembles plugin prompt tags is no longer modified unexpectedly."
+              },
+              "original": "Added a note in `/plugin` on a plugin whose hooks are left out because another enabled plugin has the same name\nFixed hook output being altered when it contained text resembling a plugin hint tag\nFixed SessionStart hooks of a plugin loaded after a headless session starts being skipped when a different plugin with the same name, or another spelling of it, had already run\nFixed a late-loading plugin's SessionStart hook output reaching the new conversation after `/clear` in headless sessions\nImproved `--debug` output for hooks: command hooks on tool calls, prompts, SessionStart and Stop now log their command, plugin, outcome and duration when they finish, so a slow hook is identifiable"
+            },
+            {
+              "title": {
+                "zh-TW": "受控 Hook 阻擋工具時正確結束輪次並修復中斷控制",
+                "en": "Managed Hooks Complete Turns on Tool Blocking and Fix Interruption Controls"
+              },
+              "body": {
+                "zh-TW": "企業管理者設定安全規則防範危險工具時，攔截工具後的流程現在能正常收尾。⟦恰似安檢閘門，以前攔下違禁品卻沒關閉通道讓旅客空等，現在阻擋時便俐落結束檢查。⟧在受控設定中，若 `PreToolUse` 掛鉤以 `\"continue\": false` 拒絕工具，或受控 `prompt` 掛鉤攔截請求，回絕後卻未結束該輪對話的問題已修正。部分工作階段中 `PostToolUse` 掛鉤未套用 `updatedMCPToolOutput` 的問題也已解決。提示詞送出掛鉤執行時按 Esc 或中斷，不再導致無頭模式工作階段結束、清空輸入或放行未檢查提示詞。只要 `CLAUDE_ENV_FILE` 裡只有單純的變數賦值，PowerShell 指令現在就能讀到掛鉤寫入的環境變數。",
+                "en": "When enterprise administrators set security rules to guard against dangerous tools, the workflow following tool interception now finishes cleanly. ⟦A security checkpoint gate used to leave travelers waiting indefinitely without closing the lane after flagging contraband, but it now shuts down inspection promptly whenever an item is blocked.⟧ In managed environments, an issue where the turn did not terminate after a `PreToolUse` hook denied a tool with `\"continue\": false` or after a managed `prompt` hook blocked a request has been fixed. An issue where `PostToolUse` hooks failed to apply `updatedMCPToolOutput` in certain sessions has also been resolved. Pressing Esc or interrupting while prompt submission hooks are running no longer causes headless sessions to exit, clears the input, or permits unreviewed prompts. Furthermore, as long as `CLAUDE_ENV_FILE` contains only basic variable assignments, PowerShell commands can now read environment variables written by hooks."
+              },
+              "original": "Fixed managed-settings `PreToolUse` hooks that deny a tool call with `\"continue\": false`, and managed `prompt` hooks that block one, refusing the call but not ending the turn\nFixed PostToolUse hooks in managed settings not applying `updatedMCPToolOutput` in some sessions\nFixed Esc or an interrupt during a `UserPromptSubmit` hook or a mod's `prompt.submit` hook ending headless sessions, clearing the typed prompt, or letting the unchecked prompt through\nFixed PowerShell commands not seeing variables that hooks write to CLAUDE_ENV_FILE (when the file holds only plain assignments)"
+            },
+            {
+              "title": {
+                "zh-TW": "外掛模組服務修正執行路徑並拒絕已卸載註冊",
+                "en": "Plugin Module Services Fix Working Directories and Reject Unloaded Registrations"
+              },
+              "body": {
+                "zh-TW": "當你撰寫自訂模組擴充 Claude 的內建能力時，模組提供的輔助方法現在能精準對應呼叫者的環境。外掛所提供的 `$` 方法先前會在主工作階段的工作目錄下運作，而非呼叫該方法的代理所在目錄，並且會忽略呼叫掛鉤所持有的輪次，現在已修正為在正確的代理目錄下執行並尊重輪次。在模組管理方面，若模組已經重新載入或遭到移除，但其殘留的掛鉤仍在執行，呼叫 `$.agent.register` 過去仍會成功註冊，現在系統會明確拒絕該呼叫。同時，模組內的網路請求工具 `$.http.fetch` 過去在發送 `HEAD` 請求時，若伺服器回傳的標頭宣告內容長度超過 4 MiB 上限，即便該請求根本不下載主體內容也會被回絕，這項不合理的限制如今已正式排除。",
+                "en": "When you write custom modules to extend Claude's built-in features, helper methods provided by modules now target the caller environment accurately. The `$` method provided by plugins previously executed in the working directory of the main session rather than that of the agent calling it, while ignoring the turn held by the calling hook; it now runs in the correct agent directory and respects the turn. For module lifecycle management, calling `$.agent.register` previously succeeded even if the module was reloaded or removed while its lingering hooks remained running, but the system now explicitly rejects such calls. Meanwhile, the network request utility `$.http.fetch` previously rejected `HEAD` requests whenever server headers declared a content length over the 4 MiB limit even though no body content was downloaded, and this restriction has now been removed."
+              },
+              "original": "Fixed a plugin's served `$` methods running in the main session's working directory instead of the calling agent's, and ignoring the turn their calling hook holds\nFixed `$.agent.register` succeeding from a mod's hook that was still running after the mod was reloaded or removed; the call is now refused\nFixed `$.http.fetch` in mods refusing a `HEAD` request when the response declares a `Content-Length` over the 4 MiB body limit"
+            },
+            {
+              "title": {
+                "zh-TW": "自架執行器支援多任務平行操作並釐清註冊錯誤",
+                "en": "Self-Hosted Runners Support Multi-Task Concurrency and Clarify Registration Errors"
+              },
+              "body": {
+                "zh-TW": "在公司內部架設自託管執行器（runner）來跑自動化任務時，遇到註冊失敗現在能立即看懂原因。執行 `claude self-hosted-runner` 若註冊遭到拒絕，終端機不再顯示容易誤導的錯誤字串，而是會明確指名是哪項組織管理員設定所阻擋，或者告知重啟的隨選執行器需要新的工作單。在雲端工作階段被拒絕時，錯誤訊息也會清楚說明組織政策為何無法載入，並點出覆蓋了登入狀態的 API 金鑰或授權權杖。多工並行方面，當執行器設定的 `--capacity` 大於 1 時，同一儲存庫有另一個工作階段正在啟動時，既有工作階段執行 git fetch、pull 或 push 過去會失敗，現在已修正。同時，透過 OpenTelemetry 追蹤工具結果時，執行安靜模式提交或指定目錄提交後遺失提交識別碼的問題也已修復。",
+                "en": "When setting up on-premise self-hosted runners to execute automated workloads, failures during registration are now immediately understandable. Running `claude self-hosted-runner` displays clear messages when registration is rejected, identifying the blocking organization administrator setting or noting that a restarted on-demand runner requires a new task order instead of showing misleading error text. For rejected cloud sessions, error messages explain why organization policies failed to load and highlight API keys or auth tokens that override login state. On concurrency, when a runner is configured with `--capacity` greater than 1, existing sessions running git fetch, pull, or push previously failed while another session in the same repository was starting up; this has been fixed. Additionally, an issue where commit IDs were lost in OpenTelemetry tool tracking after running quiet-mode commits or directory-specific commits has been resolved."
+              },
+              "original": "Fixed `claude self-hosted-runner` printing misleading errors when registration is refused: it now names the org admin setting, or says a restarted on-demand runner needs a fresh work order\nFixed a self-hosted runner session's git fetch, pull and push failing while another session of the same repository starts on a runner with `--capacity` above 1\nFixed OpenTelemetry `tool_result` events missing `git_commit_id` after `git commit -q` or `git -C <dir> commit`\nImproved the errors for a refused cloud session: they now say why your organization's policy couldn't be loaded, and name an API key or auth token that overrides your claude.ai login"
+            },
+            {
+              "title": {
+                "zh-TW": "Sonnet 5.5 快取讀取費用減半並支援自訂超載重試上限",
+                "en": "Sonnet 5.5 Cache Read Costs Halved and Overload Retry Limits Made Configurable"
+              },
+              "body": {
+                "zh-TW": "當你密切關注 API 帳單花費或經常在高負載時段發送大量請求時，這次更新帶來了實質的成本效益與穩定性。⟦類似連鎖賣場調降了常客專屬的會員倉儲保管費，同時在結帳尖峰時段給了顧客自行拉長等候號碼牌間隔的彈性，避免一再被系統退件。⟧系統內的 `/cost` 指令、狀態列、預算上限參數 `--max-budget-usd` 以及 SDK 計費數字，已全數將 Sonnet 5.5 的快取讀取價格由原本每百萬 token（AI 處理與計費的文字單位）0.20 美元調降為 0.10 美元，足足便宜了一半。同時，當遠端伺服器負載過高而回傳 529 錯誤時，現在可以透過設定環境變數 `CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS`，拉長指數退避重試的最大延遲上限，讓程式在面對擁擠的伺服器時有更充裕的等待空間。",
+                "en": "If you monitor API expenses closely or send heavy traffic during peak hours, this update brings tangible cost savings and resilience. ⟦A wholesale warehouse club cut storage locker fees in half for its frequent shoppers, while giving patrons the leeway to stretch out ticket recall intervals during checkout rush hours to avoid repeated turnaways.⟧ Across the internal `/cost` command, the statusLine, the `--max-budget-usd` budget limit parameter, and SDK billing counters, the cache read price for Sonnet 5.5 has dropped from $0.20 to $0.10 per million tokens (the fundamental text processing and billing unit for AI), cutting the cost by half. In addition, when remote servers return 529 errors due to heavy load, you can now set the `CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS` environment variable to increase the maximum exponential backoff retry delay, giving programs breathing room when communicating with congested servers."
+              },
+              "original": "Added `CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS` environment variable to set a longer maximum delay for the backoff when retrying an overloaded (529) request\nUpdated `/cost`, the status line, `--max-budget-usd` and the SDK's cost figures to price Sonnet 5.5 cache reads at $0.10 per million tokens (was $0.20)"
+            },
+            {
+              "title": {
+                "zh-TW": "程式碼審查結果改為編號清單並優化圖表配色",
+                "en": "Code Review Output Formats as Numbered Lists and Chart Styling Improves"
+              },
+              "body": {
+                "zh-TW": "閱讀自動審查意見或請 Claude 繪製統計圖表時，產出的視覺呈現現在更賞心悅目。⟦跟檢查員繳交整齊條列的體檢報告一樣，以前直接丟出一整疊未排版的原始碼讓讀者自行解讀，現在每項缺失都有清楚序號，附帶的圖表讀起來也更加舒適。⟧在雲端工作階段、Agent SDK 以及 IDE 整合環境中執行 `/code-review` 指令時，審查結果以前會停留在未格式化的原始 JSON 陣列，現在會整齊排版成帶有編號的重點清單，方便逐條檢視修訂。同時，內建隨附的資料視覺化（dataviz）技能也進行了介面調優：淺色模式下第七組數列採用更輕盈的淺紫色、深色模式下主要文字顏色變得更柔和易讀，垂直 Y 軸標籤也改採如 1K 這種緊湊簡潔的縮寫格式。",
+                "en": "When reviewing automated feedback or asking Claude to chart statistics, visual output is now noticeably cleaner. ⟦Inspectors hand over an itemized medical evaluation sheet instead of dumping an unformatted pile of raw printouts for readers to interpret on their own, giving every finding a clear serial number alongside more readable charts.⟧ In cloud sessions, the Agent SDK, and IDE integrations, running `/code-review` previously rendered an unformatted raw JSON array, but it now neatly structures results into a numbered list for straightforward line-by-line inspection. At the same time, the bundled data visualization (dataviz) skill received interface adjustments: light mode adopts a softer light purple for the seventh series, dark mode uses a gentler, more legible tone for primary text, and vertical Y-axis labels now use compact abbreviations such as 1K."
+              },
+              "original": "Fixed `/code-review` ending on a raw JSON array in cloud sessions, the Agent SDK and IDE integrations; the findings now print as a numbered list\nUpdated the bundled dataviz skill: lighter violet for the seventh series in light mode, softer primary text in dark mode, and compact y-axis labels like 1K"
+            },
+            {
+              "title": {
+                "zh-TW": "Windows 放寬長指令許可檢查並修復 MCP 伺服器退出",
+                "en": "Windows Relaxes Long Command Approval Checks and Fixes MCP Server Exits"
+              },
+              "body": {
+                "zh-TW": "在 Windows 環境下執行終端機操作或安裝工具時，多項權限與程序管理的瑕疵獲得改善。過去在 PowerShell 中執行長度超過約 1 KB 的指令時，系統總是一律彈出確認視窗；現在已放寬為長度達 32 KB 以內的指令都能正常套用允許規則與唯讀偵測，減少頻繁確認的干擾。在 MCP 伺服器管理方面，以前透過標準輸入輸出運作的伺服器在關閉時會被強制中斷，現在會先關閉標準輸入（stdin），若超過 300 毫秒仍未退出才會終止整個行程樹。安裝外掛方面，未設定 GitHub SSH 金鑰的電腦執行 `claude plugin install` 複製儲存庫失敗時，會自動改用 HTTPS 重試。同時，修正了在略過權限模式下於 Git Bash 執行刪除使用者家目錄指令卻未跳出確認提示的危險問題。",
+                "en": "When running terminal tasks or installing tools on Windows, several permission and process handling quirks have been smoothed out. PowerShell previously prompted for confirmation on every command longer than roughly 1 KB; it now applies allow rules and read-only detection to commands up to 32 KB, cutting down on frequent interruption prompts. In MCP server lifecycle management, servers running over standard input and output were previously killed outright upon shutdown, but the system now closes standard input (stdin) first and waits 300 ms before terminating the full process tree. For plugin installations, running `claude plugin install` on machines without configured GitHub SSH keys now falls back to HTTPS automatically when repository cloning fails. In addition, a dangerous issue where running commands in Git Bash under bypass permissions to delete the user home directory failed to trigger a confirmation prompt has been fixed."
+              },
+              "original": "Windows: Fixed PowerShell commands longer than about 1 KB always asking for permission, so allow rules and read-only detection now apply up to 32 KB\nWindows: Fixed stdio MCP servers being force-killed at shutdown; stdin now closes first and the process tree is killed only if the server is still running after 300 ms\nWindows: Fixed `claude plugin install` failing for GitHub `owner/repo` plugin sources on machines with no GitHub SSH key; the clone is now retried over HTTPS\nWindows: Fixed `rm -rf /c/Users/<name>` in Git Bash not asking in bypass permissions mode"
+            },
+            {
+              "title": {
+                "zh-TW": "VS Code 擴充套件統一瀏覽器動作確認並修復設定校驗",
+                "en": "VS Code Extension Unifies Browser Confirmations and Fixes Setting Validations"
+              },
+              "body": {
+                "zh-TW": "在 VS Code 編輯器中使用 Claude 側邊欄時，瀏覽器動作確認與介面設定現在更加嚴謹。透過 Claude in Chrome 執行網頁操作時，如同命令列終端機的規範，現在在所有工作階段（包含使用 `@browser` 連線時）執行動作前都會主動詢問使用者。只要在該工作階段內允許特定網站，後續就不會重複詢問。設定檔方面，擴充套件設定中補上了 `claudeCode.spinnerVerbs` 鍵值，讓 `settings.json` 能提供自動補全與格式驗證，格式錯誤的數值也不會再造成聊天面板當機。在 Windows 上點擊對話中完整路徑連結無法開啟檔案的問題已獲修復。當系統或設定啟用減少動態效果時，進度指示動畫會依約定停止播放。而螢幕關閉或遠端視窗重新連線後，面板延遲收到訊息，會讓快取時鐘（判斷提示詞快取是否仍有效的計時）誤判快取仍有效，這也已修正。",
+                "en": "When using the Claude sidebar inside VS Code, browser action checks and interface preferences are now handled with greater rigor. Web operations executed via Claude in Chrome follow command-line terminal conventions by prompting the user before actions across all sessions, including connections via `@browser`. Once a site is approved within a session, repeated prompts for it are suppressed. In configuration handling, extension settings now include the `claudeCode.spinnerVerbs` key to provide autocomplete and schema validation in `settings.json`, preventing malformed values from crashing the chat panel. An issue where clicking full file path links inside chat on Windows failed to open files has been resolved. Progress spinner animations honor system or user settings to reduce motion by stopping playback. Furthermore, delayed message delivery after the display turned off or a remote window reconnected no longer makes the prompt cache clock wrongly read as warm (still valid)."
+              },
+              "original": "[VSCode] Fixed `claudeCode.spinnerVerbs` missing from the extension's settings, so settings.json now completes and validates it; a malformed value no longer breaks the chat panel\n[VSCode] Changed Claude in Chrome to ask before browser actions in every session, including one connected with `@browser`, as the terminal does; allowing a site for the session stops repeat asks\n[VSCode] Fixed chat links written as a full Windows path, such as C:\\repo\\file.ts or file:///C:/repo/file.ts, not opening the file on Windows\n[VSCode] Fixed the working indicator still animating when reduced motion is turned on in your OS, in VS Code, or with the `prefersReducedMotion` setting\n[VSCode] Fixed the prompt cache clock reading warm after the panel caught up on messages late, such as after the display was off or a remote window reconnected"
+            },
+            {
+              "title": {
+                "zh-TW": "雲端工作階段支援多重狀態篩選並精準顯示排隊順位",
+                "en": "Cloud Sessions Add Multi-Status Filtering and Display Exact Queue Positions"
+              },
+              "body": {
+                "zh-TW": "登入管理介面檢視雲端工作進度或等候執行器派工時，系統資訊的精確度獲得升級。管理員設定中自託管環境的「Activity」標籤頁，現在替工作階段與執行器清單新增了狀態篩選器，支援一次勾選多種運作狀態進行過濾。在任務排隊方面，以前所有等候自架執行器的雲端工作階段都會顯示相同的排隊號碼，現在每個工作階段都會精確顯示前方還有幾組任務正在等待。同時，當 Claude 仍在回覆時若你發送了新訊息，過去回覆生成完畢後你的留言常會莫名跳到 Claude 回覆的上方，現在已修復為固定保持在回覆正下方，重新整理頁面後也能維持正確的對話時序。",
+                "en": "When checking cloud work progress in the admin interface or waiting for runner dispatch, system status reports are noticeably sharper. In the Activity tab under self-hosted administrator settings, the session and runner lists now feature a status filter that lets you check multiple operational states at once. On task queuing, all cloud sessions waiting for self-hosted runners previously reported the exact same queue number, but each session now displays the precise count of workloads ahead of it. Moreover, if you sent a message while Claude was generating a response, your message often jumped above Claude's reply once generation finished; it now stays pinned directly below the reply, preserving proper chronological order even after refreshing the page."
+              },
+              "original": "[Cloud sessions] Added a status filter to the Sessions and Runners lists on a self-hosted environment's Activity tab in admin settings; you can pick several statuses at once\n[Cloud sessions] Fixed every cloud session waiting for a self-hosted runner showing the same queue position; each now shows how many sessions are ahead of it\n[Cloud sessions] Fixed a message you send while Claude is still replying in a cloud session jumping above that reply when it finishes; it now stays below it, including after a reload"
+            },
+            {
+              "title": {
+                "zh-TW": "Claude Tag 管理員可自由編輯工作區與頻道記憶檔案",
+                "en": "Claude Tag Admins Can Directly Edit Workspace and Channel Memory Files"
+              },
+              "body": {
+                "zh-TW": "團隊在不同專案頻道中與 Claude 協作時，管理員現在能直接掌控 AI 的長期背景知識。⟦正如會議室後方記錄專案決策的活動看板，管理幹部現在可以親手新增、修改或撤下板上的守則。⟧擁有 Claude Tag Admin 權限的成員，現在可以在活動頁面的「Memory」標籤頁中，直接建立、編輯與刪除工作區及個別頻道的記憶檔案。",
+                "en": "When teams collaborate with Claude across multiple project channels, administrators now have direct control over the AI's long-term context. ⟦Like a conference room bulletin board that records project decisions, team leads can now pin up, rewrite or take down its notes by hand.⟧ Members with Claude Tag Admin permissions can now create, edit, and delete memory files for entire workspaces as well as individual channels directly inside the Memory tab of the activity page."
+              },
+              "original": "[Claude Tag] Added creating, editing and deleting workspace and channel memory files on the Activity page's Memory tab for members with the Claude Tag Admin permission"
+            },
+            {
+              "title": {
+                "zh-TW": "Slack 對話串僅最新回覆保留頁尾並修復連結格式",
+                "en": "Slack Threads Keep Footer Only on Latest Reply and Fix Link Formatting"
+              },
+              "body": {
+                "zh-TW": "在 Slack 頻道中與 Claude 連續對話時，討論串的版面閱讀體驗變得更加清爽。現在 Claude 僅會在對話串中最新的一則回覆保留帶有工作階段連結、模型名稱與費用資訊的頁尾，較早的回覆會自動撤下頁尾，避免畫面充斥重複資訊。此版本亦修復了多項格式細節。網址內包含括號時不會再破壞超連結或開啟錯誤網頁。文字中出現如六位數 PR 編號等類似十六進位色碼的字串時，不再於旁邊誤畫色塊。外掛確認卡片會正確顯示外掛名稱而非內部 ID。頻道未包含的外掛被提及時，會改為說明外掛來源而非誤貼移除卡片。而在自託管環境中任務中途更換執行器導致回覆遺失的問題也已修正。",
+                "en": "When holding continuous conversations with Claude in Slack channels, thread readability is now significantly cleaner. Claude now retains the footer containing session links, model names, and cost details only on the most recent reply in a thread, while earlier replies automatically drop their footers to prevent duplicate clutter. This release also resolves multiple formatting details. URLs containing parentheses will no longer break hyperlinks or open incorrect web pages. Strings that resemble hex color codes, such as six-digit PR numbers, will no longer trigger accidental color swatches next to them. Plugin confirmation cards now properly display plugin names instead of internal IDs. When plugins not included in the channel are mentioned, the system explains the plugin source instead of mistakenly posting removal cards. Additionally, an issue in self-hosted environments where replies were lost when runners were swapped mid-task has been resolved."
+              },
+              "original": "[Claude Tag] Changed Claude in Slack to show the footer with the session link, model and cost only on its newest reply in a thread; the reply before it drops the footer\n[Claude Tag] Fixed links to URLs that contain parentheses breaking in some of Claude's Slack replies and task checklists, which showed stray bracket text and opened the wrong page\n[Claude Tag] Fixed Claude's Slack replies drawing color swatches beside codes that only look like hex colors, such as six-digit pull request numbers\n[Claude Tag] Fixed the plugin confirmation card Claude posts in a Slack channel showing a plugin's ID instead of its name\n[Claude Tag] Fixed Claude in Slack posting a card to remove a plugin the channel's own settings don't include; it now explains where the plugin comes from instead\n[Claude Tag] Fixed Claude in Slack sometimes losing its reply when a session in a self-hosted environment moved to a new runner partway through a task"
+            },
+            {
+              "title": {
+                "zh-TW": "程式碼審查準確回傳檢查結果並明確提示儲存限制",
+                "en": "Code Review Accurately Returns Check Results and Clarifies Save Restrictions"
+              },
+              "body": {
+                "zh-TW": "送出 Pull Request 等候程式碼審查時，上面的 Code Review 檢查標記現在能即時反映審查完畢的真實狀態。⟦就像公文簽核進度，以前主管批閱完了狀態卻一直卡在「審核中」，現在一審完就會直接亮出簽核結果。⟧過去在審查程序完成後，Pull Request 上的 Code Review 檢查狀態偶爾會停滯在「進行中」而未更新，現在已修復為在完成時立刻顯示審查的具體判定結果。同時，管理者在調整 Code Review 的後台設定時，若因為組織政策限制等原因而無法儲存，介面不再只丟出含糊的失敗訊息，而是會明確說明無法儲存的具體原因。",
+                "en": "When submitting a pull request for review, the Code Review check badge now reflects the real status as soon as the review finishes. ⟦Document sign-off progress previously stayed stuck on \"pending\" even after the manager approved it, but now displays the approval decision immediately once completed.⟧ In the past, after a review finished, the Code Review check status on the pull request occasionally lingered on \"in progress\" without updating; it now immediately displays the specific determination result upon completion. Meanwhile, when administrators adjust Code Review configuration in settings and cannot save due to organization policy restrictions, the interface no longer outputs a vague failure message, but explicitly explains the specific reason why saving failed."
+              },
+              "original": "[Code Review] Fixed the Code Review check sometimes staying \"in progress\" on a pull request after the review finished; it now shows the review's result\n[Code Review] Improved Code Review admin settings to say why a setting couldn't be saved, such as a policy restriction, instead of a generic failure message"
+            }
+          ]
+        },
         {
           "version": "2.1.295",
           "period": "2026-10-08",
@@ -335,221 +583,6 @@
               "original": "Fixed `prompt` and `agent` hooks written as instructions (such as \"Block commands that...\") allowing what they should block\nImproved how `prompt` hooks on Stop and SubagentStop written as instructions (such as \"Carry on if the build is broken\") are judged, so Claude is less likely to stop early"
             }
           ]
-        },
-        {
-          "version": "2.1.293",
-          "period": "2026-10-07",
-          "items": [
-            {
-              "title": {
-                "zh-TW": "Claude Haiku 5.5 上線，百萬上下文與新費率登場",
-                "en": "Claude Haiku 5.5 Launches with Million-Token Context and New Pricing"
-              },
-              "body": {
-                "zh-TW": "想快速處理海量文字時，官方 API 的預設輕量模型迎來升級。新版 `claude-haiku-5-5` 具備 1M 的上下文（模型單次能容納的文字容量）。每百萬 token（AI 處理與計費的文字單位）的輸入與輸出費用為 0.10 與 0.50 美元，超過 100K 的提示詞則為 0.50 與 2.50 美元。⟦好比小貨車的貨斗能裝入百萬單位的資料，計費看的是裝入多少資料：提示詞超過十萬單位，就適用另一組輸入與輸出費率。⟧",
-                "en": "When you need to process large volumes of text quickly, the default lightweight model in the official API gets an upgrade. The new `claude-haiku-5-5` offers a 1M context window (the amount of text the model can hold in a single pass). Input and output cost $0.10 and $0.50 per million tokens (the units of text the AI processes and bills by), while prompts over 100K are billed at $0.50 and $2.50. ⟦Think of a small delivery truck whose cargo bed can hold a million units of data, and billing depends on how much you load in: once a prompt exceeds a hundred thousand units, a different set of input and output rates applies.⟧"
-              },
-              "original": "Added Claude Haiku 5.5 (`claude-haiku-5-5`), now the default Haiku model on the Anthropic API — 1M context, $0.10/$0.50 per Mtok ($0.50/$2.50 for prompts over 100K)"
-            },
-            {
-              "title": {
-                "zh-TW": "代理清單顯示更穩定，授權與名稱不再走樣",
-                "en": "Agent List Display Stabilized, Authorization and Names No Longer Distorted"
-              },
-              "body": {
-                "zh-TW": "在開啟多個背景工作階段時，代理清單與底欄資訊現在能正確反映現況。以前系統短暫無法讀取工作階段資料夾（例如開啟太多檔案）時，底欄代理數量會消失，清單也會被佔位列洗掉。現在遇到讀取異常不會再弄亂介面。命名為 worker 的自訂代理在啟動時不再被誤標為 Agent，結束後詳細對話框標題也會保留原本類型。`claude agents` 以前提供跳過權限檢查的選項，但同意若只存在 `.claude/settings.local.json` 或 `--settings` 檔案中，背景工作階段會忽略該選項；現在會先詢問同意，仍忽略該選項的工作階段會持續顯示簡短提示。⟦像查看外勤人員排班表，以前資料夾卡住會讓整排名字消失，代號還會印錯；現在名牌固定正確，遇到權限異動也會清楚貼上提醒便條。⟧",
-                "en": "When running multiple background sessions, the agent list and bottom-bar information now correctly reflect the current state. Previously, when the system briefly couldn't read the session folder (for example, because too many files were open), the agent count in the bottom bar would vanish and the list would be wiped out by placeholders. Now read errors no longer scramble the interface. Custom agents named worker are no longer mislabeled as Agent at startup, and the detail dialog title keeps the original type after they finish. `claude agents` previously offered an option to skip permission checks, but if the consent existed only in `.claude/settings.local.json` or a `--settings` file, background sessions would ignore that option; now consent is asked for first, and sessions that still ignore the option keep showing a short notice. ⟦Picture checking a field staff schedule board: previously a stuck folder would make a whole row of names disappear and print the wrong badge; now name tags stay correct, and permission changes get a clearly posted reminder note.⟧"
-              },
-              "original": "Fixed the footer's agents count disappearing after a momentary failure to read the sessions folder (for example, too many open files)\nFixed a custom agent named `worker` being shown as \"Agent\" when it starts, and the agent detail dialog's title losing the agent type once the agent finishes\nFixed `claude agents` offering bypass permissions that background sessions then ignored when consent was saved only in `.claude/settings.local.json` or a `--settings` file; it now asks for consent first, and a session that ignores bypass shows a short notice that stays\nFixed the agents view briefly replacing the session list with placeholder rows when the sessions folder could not be read (for example, too many open files)"
-            },
-            {
-              "title": {
-                "zh-TW": "子代理型態精準識別，工具停用範圍不再誤判",
-                "en": "Subagent Types Precisely Identified, Tool Disable Scope No Longer Misjudged"
-              },
-              "body": {
-                "zh-TW": "透過腳本監控多個子代理或自訂工具清單時，狀態通知與工具判定變得更明確。`subagentStatusLine`（提供子代理狀態的資料）新增 `agentType` 欄位，讓腳本分辨自訂代理類型。以前主機端、權限規則或 `--tools` 清單移除 `SendMessage` 後，Claude 仍可能被要求用它繼續子代理或傳訊；現在包含恢復的工作階段都已修正。子代理與 `--agent` 工作階段若只是自己的工具清單未列入某個內建工具，也不再被告知整個工作階段都停用它。⟦彷彿為分工小組發放專屬識別證，以前某位組員手邊沒剪刀，廣播就誤喊全公司禁用；現在會分清是誰沒列入工具，也不會要求使用已拆除的分機。⟧",
-                "en": "When monitoring multiple subagents or custom tool lists through scripts, status notifications and tool determinations become clearer. `subagentStatusLine` (the data providing subagent status) adds an `agentType` field so scripts can tell custom agent types apart. Previously, after the host, permission rules, or a `--tools` list removed `SendMessage`, Claude could still be asked to use it to resume subagents or send messages; this is now fixed, including for resumed sessions. Subagents and `--agent` sessions are also no longer told the entire session has a built-in tool disabled just because their own tool list doesn't include it. ⟦Like issuing dedicated ID badges to a task force: previously, when one member happened to have no scissors at hand, the broadcast mistakenly announced a company-wide ban; now it distinguishes who lacks a listed tool, and no one is asked to use an extension line that has been removed.⟧"
-              },
-              "original": "Added `agentType` to the `subagentStatusLine` payload, so scripts can tell custom subagent types apart\nFixed Claude being told to continue or message subagents with `SendMessage` in sessions, including resumed ones, where a host, a permission rule or a `--tools` list removed that tool\nFixed subagents and `--agent` sessions being told a built-in tool was disabled for the whole session when only their own tool list left it out"
-            },
-            {
-              "title": {
-                "zh-TW": "背景切換邏輯修復，草稿與排隊訊息不再遺失",
-                "en": "Background-Switch Logic Fixed, Drafts and Queued Messages No Longer Lost"
-              },
-              "body": {
-                "zh-TW": "在 Claude 運作途中按左箭頭 `←` 鍵將工作階段切到背景時，未送出的文字與等待回答的狀態不會再被意外打斷。以前只要輸入框留有未送出的字，或畫面正在等待你回答問題，按了 `←` 在 10 秒後仍會切入背景。現在遇到這些情況會自動取消背景切換。當排隊中的訊息無法轉移至背景時，系統會停在原地並提示原因，不再遺失訊息。剛按 `←` 切換時若遇到權限確認，按 Esc，或選擇 No 且不附回饋，也能如期停止該輪對話。⟦跟櫃檯交辦事項一樣，以前話講到一半或正在拿證件，店員等幾秒就直接拉下鐵捲門；現在手邊有草稿或問題，就會取消這次關門，不再強行把對話收進後台。⟧",
-                "en": "When you press the left arrow `←` key mid-run to switch a session to the background, unsent text and pending-question states are no longer accidentally interrupted. Previously, as long as the input box held unsent text, or the screen was waiting for you to answer a question, pressing `←` would still switch to the background after 10 seconds. Now the background switch is automatically canceled in these situations. When a queued message cannot be transferred to the background, the system stays in place and explains why, instead of losing the message. If a permission confirmation appears right after you press `←`, pressing Esc, or choosing No without feedback, also stops that turn as expected. ⟦It works like handing tasks off at a counter: previously, if you were mid-sentence or reaching for your ID, the clerk would wait a few seconds and then pull down the shutter anyway; now, with a draft or question in hand, this closing is canceled instead of forcing the conversation into the back room.⟧"
-              },
-              "original": "Fixed a message sent while Claude was working being lost when `←` moved the session to the background; if a queued message can't move, `←` now stays put and says so\nFixed `←` backgrounding a session after 10 seconds while the prompt held unsent text (it now cancels the move) or a question was waiting for your answer\nFixed Esc, or No without feedback, on a permission prompt not stopping the turn when `←` had just been pressed to move the session to the background"
-            },
-            {
-              "title": {
-                "zh-TW": "外掛工具宣告更彈性，測試與掛鉤機制修復",
-                "en": "More Flexible Plugin Tool Declaration, Test and Hook Mechanisms Fixed"
-              },
-              "body": {
-                "zh-TW": "開發自訂模組或外掛時，工具註冊與測試流程更可靠。`$.tool.register` 支援 `isDeferred`，設為 `false` 會直接在提示詞列出工具結構，不必透過工具搜尋。外掛掛鉤（特定事件發生時被觸發的小程式）工作程序重啟時，不再漏掉模組的 `classic.*` 事件掛鉤，避免只剩設定掛鉤單獨回應。呼叫 `$.session.append` 的模組曾讓 `claude plugin test` 失敗，現在測試能透過 `mock.session` 讀回追加紀錄。裝有 Docker Desktop 的 Mac 上，`~/.docker/bin` 下的符號連結（指向另一位置的捷徑檔）曾讓 `claude plugin eval` 拒絕所有授予 Bash 權限的執行。這項錯誤已修好，拒絕訊息現在會指出憑證庫（存登入證明的地方）哪個部分持有該連結。",
-                "en": "When developing custom modules or plugins, tool registration and testing flows are more reliable. `$.tool.register` supports `isDeferred`; setting it to `false` lists the tool schema directly in the prompt without going through tool search. When the plugin hook (a small program triggered by specific events) worker process restarts, a module's `classic.*` event hooks are no longer dropped, avoiding a situation where only settings hooks respond alone. Modules calling `$.session.append` used to make `claude plugin test` fail; tests can now read back the appended records via `mock.session`. On Macs with Docker Desktop installed, symlinks (shortcut files pointing to another location) under `~/.docker/bin` used to make `claude plugin eval` reject every execution granted Bash permission. This bug is fixed, and the rejection message now indicates which part of the credential store (where login proofs are kept) holds the link."
-              },
-              "original": "Added `isDeferred` to `$.tool.register` for mods: `false` lists the tool's schema in the prompt from the start instead of behind tool search\nFixed a mod's hooks on `classic.*` events being skipped while the plugin hooks worker restarts, which left settings hooks to answer without them\nFixed `claude plugin test` failing for mods that call `$.session.append`; tests can read the appended rows back with the new `mock.session`\nFixed `claude plugin eval` refusing every Bash-granting run on Macs with Docker Desktop (links under `~/.docker/bin`); the refusal now names which part of a credential store held the link"
-            },
-            {
-              "title": {
-                "zh-TW": "遠端操控串流更流暢，通知與歷史上傳修復",
-                "en": "Remote-Control Streaming Smoother, Notification and History Upload Fixes"
-              },
-              "body": {
-                "zh-TW": "透過遠端操控或雲端環境進行對話時，長篇回覆的顯示與背景狀態更正常。以前在長對話中文字偶爾會整塊卡住才突然跳出，現在能順暢逐字顯示。憑證復原之後，系統不會再重複上傳工作階段一開始的歷史紀錄。透過 `claude remote-control` 指令開啟時，推播通知也不會再誤報遠端操控未啟用。⟦恰似架設一條清晰的即時廣播線路，以前講到長篇內容容易卡成大封包一口氣倒出來，重新連線還會重播開場白；現在字句平順送達，連線燈號也隨時保持準確。⟧",
-                "en": "When conversing through remote control or cloud environments, long replies display and background status behave more normally. Previously, in long conversations text would occasionally freeze in a block and then suddenly pop out; it now displays smoothly word by word. After credentials are restored, the system no longer re-uploads the history from the start of the session. When launched via the `claude remote-control` command, push notifications no longer falsely report that remote control is not enabled. ⟦Imagine setting up a clear live broadcast line: previously, long content tended to jam into one big packet dumped out all at once, and reconnecting would replay the opening remarks; now words arrive smoothly, and the connection indicator stays accurate at all times.⟧"
-              },
-              "original": "Fixed replies in very long Remote Control and cloud sessions that could still appear a block at a time instead of streaming in\nFixed Remote Control uploading a session's starting history again after every credential recovery\nFixed PushNotification reporting \"Remote Control inactive\" in sessions started with `claude remote-control`"
-            },
-            {
-              "title": {
-                "zh-TW": "Chrome 瀏覽器控制強化，分頁與切換不再斷線",
-                "en": "Chrome Browser Control Strengthened, Tabs and Switching No Longer Disconnect"
-              },
-              "body": {
-                "zh-TW": "讓 Claude 操控 Chrome 瀏覽器抓取網頁時，分頁反應與連線提示變得更友善。瀏覽器回報分頁較慢時，頁面操作被拒絕的次數減少。在以 `--chrome` 啟動的工作階段中輸入 `/tui` 指令，不再意外切斷瀏覽器連線，並會遵守 `--no-chrome` 參數。在雲端工作階段找不到瀏覽器且有多個組織時，提示會說明擴充功能需登入相同組織與切換方式。⟦就像請助理操作電腦，以前分頁資訊回報較慢時，操作容易遭拒；現在這類拒絕變少，切換檢視模式時也不會把瀏覽器連線踢掉。⟧",
-                "en": "When having Claude drive the Chrome browser to fetch web pages, tab responsiveness and connection prompts become friendlier. When the browser is slow to report tabs, page operations are rejected less often. Typing the `/tui` command in a session started with `--chrome` no longer accidentally cuts the browser connection, and the `--no-chrome` parameter is respected. When a cloud session can't find a browser and multiple organizations exist, the prompt explains that the extension must sign in to the same organization and how to switch. ⟦Like asking an assistant to operate your computer: previously, when tab information came back slowly, operations were easily refused; now such refusals are rarer, and switching view modes doesn't kick the browser connection off.⟧"
-              },
-              "original": "Fixed `/tui` disconnecting Claude in Chrome in a session started with `--chrome`, and ignoring `--no-chrome`\nImproved Claude in Chrome: fewer page actions are refused when the browser is slow to report its tabs\nImproved the Claude in Chrome message in cloud sessions when the browser can't be reached: if you belong to more than one organization, it now says the extension must be signed in to the same one, and how to change that"
-            },
-            {
-              "title": {
-                "zh-TW": "程式碼審查上傳修復，明確列出失敗原因",
-                "en": "Code Review Upload Fixed, Failure Reasons Listed Explicitly"
-              },
-              "body": {
-                "zh-TW": "使用程式碼審查或 `/ultrareview` 上傳專案時，檔案檢查與錯誤指引更清晰。以前在 Linux 上，沙盒指令執行中可能因設定檔「無法解析」而誤拒部分儲存庫，例如儲存庫放在另一份已取出的專案副本裡。現在這項讀取問題已經修正。遇到分割索引檔案遭拒時，系統不再給出可能讓 Git 讀不到索引的錯誤修復建議。在 Code Review 的新增儲存庫對話框中，現在會逐一列出無法加入的儲存庫，並寫明各自的原因（例如缺少 GitHub 寫入權限）。⟦宛若包裹送進智慧安檢機，以前遇到多層包裝就會誤判退件，退件單還附上錯誤的拆封建議；現在檢查流程正常運作，退件時也會逐一列出缺漏的通行文件。⟧",
-                "en": "When uploading projects with code review or `/ultrareview`, file checks and error guidance are clearer. Previously on Linux, sandboxed command execution could wrongly reject some repositories because a config file \"couldn't be parsed\"—for example, when the repository sat inside another checked-out copy of the project. This read problem is now fixed. When a split index file is rejected, the system no longer suggests a fix that could leave Git unable to read the index. In Code Review's add-repository dialog, repositories that can't be added are now listed one by one, each with its reason (such as missing GitHub write permission). ⟦Picture a parcel entering a smart security scanner: previously, multi-layer packaging would trigger a mistaken rejection, and the rejection slip came with wrong advice on how to open it; now the inspection flow works properly, and rejections list each missing travel document one by one.⟧"
-              },
-              "original": "Fixed the `/ultrareview` upload on Linux wrongly refusing some repositories, such as one inside another checkout, over a settings file that \"could not be parsed\" while a sandboxed command was running\nFixed the `/ultrareview` upload's refusal over split-index files advising a git command that could leave git unable to read its index\n[Code Review] Improved Code Review's Add a repository dialog to list each repository that couldn't be added and why, such as missing GitHub write access"
-            },
-            {
-              "title": {
-                "zh-TW": "技能說明傳遞修復，閒置同步間隔拉長",
-                "en": "Skill Description Delivery Fixed, Idle Sync Interval Extended"
-              },
-              "body": {
-                "zh-TW": "剛在網頁版修改了自訂技能的說明文字時，終端機裡的 Claude 曾有讀不到變更的問題。編輯同步自 claude.ai 的技能描述後，不再有時要開新對話或輸入 `/clear`，模型才讀得到修改後的說明。當沒有工作階段在使用時，背景同步檢查技能變更的間隔從每 10 分鐘調整為約每 40 分鐘一次。⟦猶如辦公室更新工作手冊，以前改了條文，有時得換一本新的會議筆記才能讓同事讀到；現在不再有這項障礙，無人上班時檢查手冊變更的間隔也拉長了。⟧",
-                "en": "When you had just edited a custom skill's description on the web, Claude in the terminal sometimes couldn't read the change. After editing a skill description synced from claude.ai, you no longer sometimes need to start a new conversation or type `/clear` for the model to pick up the revised description. When no session is in use, the background sync that checks for skill changes now runs about every 40 minutes instead of every 10 minutes. ⟦Think of an office updating its work manual: previously, after a clause was changed, you sometimes had to swap in a fresh meeting notebook for colleagues to read it; now that obstacle is gone, and the interval for checking manual changes while nobody is on duty has been stretched out.⟧"
-              },
-              "original": "Fixed a claude.ai-synced skill's edited description sometimes not reaching the model until a new conversation or `/clear`\nChanged claude.ai skill syncing to check for changes about every 40 minutes, instead of every 10, while no session is in use"
-            },
-            {
-              "title": {
-                "zh-TW": "剪貼簿與鍵盤操作修復，選單切換不再跳轉",
-                "en": "Clipboard and Keyboard Fixes, Menu Adjustments No Longer Wrap Around"
-              },
-              "body": {
-                "zh-TW": "在終端機貼上文字、設定快速鍵或挑選模型參數時，各項輸入判定更精準。開頭與結尾單字相同的貼上文字，曾被當成手動輸入。貼上技能名稱後，緊接著輸入或貼上的重音符號若併入最後一個字母，曾讓技能名稱被當成手動輸入；兩項都已修好。在 `/model` 選單用左右箭頭調整思考深度時，不再越過最高或最低值循環跳轉，避免誤存 Low 為預設值。以前透過 `/feedback` 傳送報告時，按 Ctrl+O 或 Ctrl+Z 會跳回草稿清單，導致無法取消傳送；這個問題現在已修好。`keybindings.json` 接受單一空白鍵 `\" \"`，對 `\"ctrl+ k\"` 這類多餘空格則顯示警告。⟦好似打字機校正了進紙與按鍵機構，以前整段貼上會被認成逐字敲打，旋鈕轉到底還會跳回開頭；現在這些誤判與跳轉已修正。⟧",
-                "en": "When pasting text in the terminal, setting shortcuts, or picking model parameters, input detection is more accurate. Pasted text whose first and last words matched used to be treated as typed by hand. After pasting a skill name, an accent mark typed or pasted right after it that merged into the last letter could make the skill name count as manual input; both issues are fixed. In the `/model` menu, using the left and right arrows to adjust thinking depth no longer wraps past the highest or lowest value, avoiding accidentally saving Low as the default. Previously, when sending a report via `/feedback`, pressing Ctrl+O or Ctrl+Z jumped back to the draft list, making it impossible to cancel sending; this is now fixed. `keybindings.json` accepts a single space key `\" \"`, and shows a warning for extra spaces like `\"ctrl+ k\"`. ⟦Like a typewriter whose paper feed and key mechanism have been recalibrated: previously a whole pasted passage was mistaken for keystroke-by-keystroke typing, and a dial turned to its limit would jump back to the start; those misjudgments and jumps are now corrected.⟧"
-              },
-              "original": "Fixed `/model` effort ←/→ wrapping past the highest or lowest level, which could accidentally save Low as a model's default effort\nFixed pasted text that begins and ends with the same words sometimes being sent to Claude as if it had been typed\nFixed a skill name in pasted text being treated as typed when an accent typed or pasted right after the paste merged into its last letter\nFixed `/feedback` returning to the drafts list after Ctrl+O or Ctrl+Z while a report was sending, leaving the send impossible to cancel\nFixed keybindings.json checks: a lone \" \" (space key) is no longer reported as an error, and keys like \"ctrl+ k\" now get a warning"
-            },
-            {
-              "title": {
-                "zh-TW": "Vim 模式編輯修復，縮排與行刪除游標精確對齊",
-                "en": "Vim Mode Editing Fixes with Precise Cursor Alignment for Indentation and Line Deletion"
-              },
-              "body": {
-                "zh-TW": "習慣在終端機開啟 Vim 模式編輯指令的讀者，縮排與刪除操作現在更符合直覺。以前在純空白行按 `>>` 或 `<<` 縮排時，游標會漂移至行尾之外，導致接著按 `x` 無法刪除字元。現在游標會留在正確位置。在 Visual 模式以 `V` 接 `d` 刪除整行後，游標會停在首個非空白字元，且按下 `.` 鍵也能正確在該行重複操作。⟦正如同調整精準的排版尺規，以前在空白行按縮排會讓游標飄出紙外，整行刪除後游標也找不到落腳處；現在每次游標都落在字元上，重複操作能立刻生效。⟧",
-                "en": "For users accustomed to editing commands with Vim mode enabled in the terminal, indentation and deletion operations are now more intuitive. Previously, pressing `>>` or `<<` to indent on blank lines caused the cursor to drift past the end of the line, preventing a subsequent `x` from deleting characters. The cursor now remains in the correct position. After deleting an entire line in Visual mode using `V` followed by `d`, the cursor lands on the first non-blank character, and pressing `.` correctly repeats the operation on that line. ⟦Much like calibrating a drafting ruler, indenting on a blank line previously made the cursor slide off the page and left it without a landing point after whole-line deletions; now the cursor consistently lands on a character every time, and repeating operations takes effect immediately.⟧"
-              },
-              "original": "Fixed vim mode `>>` and `<<` on a line of only spaces leaving the cursor past the end of the line, where a following `x` deleted nothing\nFixed vim mode: after deleting whole lines in Visual mode (`V` then `d`) the cursor lands on the first non-blank, and `.` after it acts on the cursor's line"
-            },
-            {
-              "title": {
-                "zh-TW": "背景維護與清除指令修復，不再誤殺無關行程",
-                "en": "Background Maintenance and Cleanup Command Fixes Prevent Terminating Unrelated Processes"
-              },
-              "body": {
-                "zh-TW": "執行日常維護或清理檔案時，行程管理與清理指令更穩定。執行 `claude logs`、`claude stop`、`claude kill`、`claude rm` 與 `claude daemon status`、`claude daemon stop`、`claude daemon uninstall` 時，不再因登入即將或已經過期而突然被登出。`claude purge` 以前遇到無法刪除的檔案或資料夾，可能靜默結束或卡在終端機；現在會刪完其餘項目、列出失敗清單，並以 exit 1 結束。Windows 停止狀態列、掛鉤或指令時，也不再誤殺拿到相同行程 ID 的無關程式。⟦就像打掃時不再因個別抽屜卡住而整隊停擺，也不會誤請隔壁訪客離場，而是清完其餘區域並留下待辦清單。⟧",
-                "en": "Process management and cleanup commands are now more reliable during routine maintenance and file cleanup. Running `claude logs`, `claude stop`, `claude kill`, `claude rm`, `claude daemon status`, `claude daemon stop`, or `claude daemon uninstall` no longer causes unexpected logouts when login credentials are near expiration or already expired. When encountering files or directories that cannot be deleted, `claude purge` previously exited silently or hung in the terminal; it now finishes deleting the remaining items, lists failures, and exits with code 1. On Windows, stopping the status line, hooks, or commands no longer terminates unrelated programs that happen to share the same process ID. ⟦Just as a cleaning crew no longer halts entirely when a single drawer is jammed or mistakenly escorts out visitors from next door, it clears the remaining areas and leaves a checklist of pending items.⟧"
-              },
-              "original": "Fixed `claude logs`, `stop`, `kill`, `rm` and `claude daemon status`, `stop`, `uninstall` sometimes signing you out when your login had expired or was about to\nFixed `claude purge` stopping silently (exit 0, or a hang in a terminal) when a file or folder could not be deleted; it now deletes the rest, lists what it could not delete, and exits 1\nWindows: Fixed stopping a status line, hook, or shell command sometimes terminating an unrelated process that had been given the same process ID"
-            },
-            {
-              "title": {
-                "zh-TW": "單檔 Bash 檢視載入規則，差異提示標明背景變更",
-                "en": "Single-File Bash View Commands Load Rules, Diff Notices Indicate Background Changes"
-              },
-              "body": {
-                "zh-TW": "當 Claude 使用終端機指令查看檔案或編輯程式碼時，專案規則的觸發與變更紀錄更完整。以前透過 Bash 工具，以只查看單一檔案的 `cat`、`head`、`tail`、`sed -n` 或 `grep` 指令而非 Read 工具查看檔案，會漏載路徑規則與巢狀 `CLAUDE.md`。現在這些單檔檢視指令也能正確載入專屬規則。Bash 編輯的差異提示現在也明確加註，列出的檔案是在指令執行期間發生變更（可能包含其他背景行程的寫入）。⟦彷彿巡檢員改走指定側門查看一間庫房，以前漏拿該區守則，現在也能領到；驗收單則清楚說明修改發生在作業期間，可能包含其他班次留下的痕跡。⟧",
-                "en": "Project rule triggering and change tracking are more comprehensive when Claude inspects files or edits code through terminal commands. Previously, viewing a single file through the Bash tool with `cat`, `head`, `tail`, `sed -n`, or `grep` instead of the Read tool missed path-specific rules and nested `CLAUDE.md` files. These single-file viewing commands now correctly load their dedicated rules. Diff notices for Bash edits also explicitly note that listed files were modified while the command was running (which may include writes from other background processes). ⟦Consider an inspector entering a storage room through a side door: where area guidelines were once missed, they are now retrieved reliably, and the inspection report clarifies that changes occurred during the operation, potentially reflecting work left by other shifts.⟧"
-              },
-              "original": "Fixed path-scoped rules and nested CLAUDE.md files not loading when Claude views a file with a single-file cat, head, tail, sed -n or grep command in the Bash tool instead of the Read tool\nImproved the Bash edit diff note to say the listed files changed while the command ran, which can include writes by other processes"
-            },
-            {
-              "title": {
-                "zh-TW": "成品套件固定版本，發布路徑不再閃過異常字樣",
-                "en": "Artifact Packages Pin Exact Versions, Publishing Paths No Longer Flash Error Strings"
-              },
-              "body": {
-                "zh-TW": "讓 Claude 為你產生成品（可直接預覽的網頁或獨立程式碼元件）時，會用到外部程式庫，也會看到發布紀錄。在建立成品時，Claude 現在會將外部程式庫固定到至少兩週前的確切版本。在發布成品且內容還在串流時，紀錄列短暫顯示無法列印路徑字樣 `Artifact(\"(unprintable path)\")` 的問題也已修好。⟦宛如工匠製作展示樣品，選料清單現在寫明至少兩週前的確切零件版本；交件清單也不再於交付途中短暫冒出讀不出的地址字樣。⟧",
-                "en": "When Claude creates artifacts (web pages you can preview directly or standalone code components), external libraries are used and publication logs are displayed. Claude now pins external libraries to exact versions released at least two weeks prior during artifact creation. An issue where the log line briefly displayed `Artifact(\"(unprintable path)\")` while an artifact was being published and streamed is also fixed. ⟦In the manner of an artisan building showroom prototypes, the bill of materials now specifies exact component versions released at least two weeks earlier, and delivery manifests no longer briefly flash unreadable address strings mid-transit.⟧"
-              },
-              "original": "Fixed the Artifact tool's transcript row briefly reading `Artifact(\"(unprintable path)\")` while a publish call was still streaming in\nImproved artifacts: Claude pins libraries to exact versions two weeks old or older"
-            },
-            {
-              "title": {
-                "zh-TW": "企業策略提早載入，逾時自動重試啟動更順",
-                "en": "Enterprise Policies Load Early with Automatic Retry on Timeout for Smoother Startup"
-              },
-              "body": {
-                "zh-TW": "在企業或團隊組織環境中使用 Claude 時，啟動速度與政策設定更流暢。系統現在會提早抓取組織政策與受管設定，遇到停滯請求時會在 3 秒後自動重試。這減少了連線不順時的卡頓等待。過去當 `desktop` 政策設定 Claude Desktop 的內建瀏覽器鍵（例如 `builtinBrowserEnabled`）時，應用程式閘道會拒絕啟動，該問題現已修復。⟦正如企業大樓的智慧門禁系統，提早向總部更新通行名單，遇到讀卡延遲 3 秒便自動重試；以前總部設定特定項目會讓閘門無法啟動，現在這項啟動問題已修好。⟧",
-                "en": "Startup performance and policy configuration are smoother when using Claude in enterprise or team organizational environments. The system now fetches organizational policies and managed settings earlier, automatically retrying stalled requests after 3 seconds. This reduces frustrating delays caused by sluggish connections. An issue where the application gateway refused to start when `desktop` policies configured Claude Desktop's built-in browser keys (such as `builtinBrowserEnabled`) has been resolved. ⟦Resembling a smart access gate in a corporate office that syncs badge credentials early with headquarters and retries after a 3-second reader delay, turnstiles that previously refused to start due to specific policy keys now boot smoothly.⟧"
-              },
-              "original": "Fixed the Claude apps gateway refusing to start when a `desktop` policy sets Claude Desktop's built-in browser keys, such as `builtinBrowserEnabled`\nImproved startup for Team and Enterprise organizations: policy and managed settings are fetched earlier, and a stalled request is retried after 3 seconds"
-            },
-            {
-              "title": {
-                "zh-TW": "記憶整理不重複做工，提示訊息回歸既有設計",
-                "en": "Memory Compaction Avoids Duplicate Work, Prompt Messaging Reverts to Established Design"
-              },
-              "body": {
-                "zh-TW": "在長時間對話或自動執行任務時，Claude 對歷史進度的判斷與權限通知更穩定。以前觸發上下文壓縮（將過長記錄精簡以釋放空間的機制）時，Claude 可能把壓縮前做完的事誤判為剛做完，導致重複做工或收回成果。現在這項時序錯亂問題已經修復。自動模式拒絕訊息的改動已撤回，不再告訴 Claude 拒絕涵蓋整體結果而非單一指令。雲端容器重啟若遺失待執行的 `/loop` 喚醒或排程任務，不再通知 Claude，工作階段會維持休眠。⟦像秘書整理會議摘要，以前把舊筆記濃縮後容易搞混工作完成的時間，甚至把做好的事重做一次；現在這項時序判斷錯誤已修正。⟧",
-                "en": "Claude tracks historical progress and permission notifications more reliably during long conversations or automated tasks. Previously, triggering context compaction (a mechanism that condenses long transcripts to free up space) could cause Claude to misjudge tasks finished before compaction as just completed, leading to duplicate work or reverted progress. This timeline confusion has now been fixed. A change to auto-mode rejection messages has been reverted, no longer telling Claude that a rejection covers the entire outcome rather than a single command. When cloud container restarts lose pending `/loop` wakeups or scheduled tasks, notifications are no longer sent to Claude, allowing the session to stay dormant. ⟦View it as an executive assistant summarizing meeting notes: condensing older minutes previously caused confusion over when tasks were finished and even triggered duplicate efforts, but this chronological misjudgment is now corrected.⟧"
-              },
-              "original": "Fixed Claude sometimes treating its own last actions before a context compaction as done after it, and retracting or redoing finished work\nReverted the auto mode denial message change from 2.1.281 that told Claude a denial covers the outcome, not only the exact command\nReverted the 2.1.290 fix for cloud sessions staying asleep after a container restart lost a pending `/loop` wakeup or scheduled task; Claude is no longer told, and the session stays asleep"
-            },
-            {
-              "title": {
-                "zh-TW": "外部工具連線修復記憶體洩漏，排序與輪詢負載優化",
-                "en": "External Tool Connections Fix Memory Leaks, Sorting and Polling Loads Optimized"
-              },
-              "body": {
-                "zh-TW": "專案連接多個外部工具或在自託管環境大量運作時，記憶體佔用與伺服器負載更平衡。以前 HTTP MCP（讓 AI 連接外部工具的協定）連線會把每個已送出的請求保留到連線關閉。這會造成記憶體洩漏（不再需要的資料仍占著記憶體），現已修好。提供給模型的代理與 MCP 伺服器清單中，非 ASCII 字元名稱會排在 ASCII 名稱之後。OpenTelemetry（蒐集程式運作資料的工具）的 `claude_code.at_mention` 記錄項目，每次讀取提示詞最多送出 100 個代理事件及 100 個 MCP 資源事件。自託管環境將固定 5 秒輪詢改為間隔 4～6 秒，避免同一環境的多個副本同時發出請求。⟦好比物流中心重整發車櫃檯，辦理完的收據不再堆滿桌面，名冊也依序歸檔；各車隊錯開回報時間，不再同一秒蜂擁擠入大門。⟧",
-                "en": "Memory consumption and server load are more balanced when projects connect multiple external tools or run at scale in self-hosted environments. Previously, HTTP MCP (a protocol connecting AI to external tools) connections retained every sent request until closed. This caused a memory leak (where data no longer needed continues occupying memory), which is now resolved. In the list of agents and MCP servers provided to the model, names with non-ASCII characters are sorted after ASCII names. OpenTelemetry (a tool for collecting application runtime telemetry) `claude_code.at_mention` log entries now emit at most 100 agent events and 100 MCP resource events per prompt read. Self-hosted environments replaced fixed 5-second polling with a 4–6 second jitter interval, preventing multiple instances in the same environment from sending requests simultaneously. ⟦An analogy is a dispatch counter at a logistics hub where processed receipts no longer clutter the desks and rosters are neatly indexed; truck fleets now stagger their check-in times instead of crowding through the gates in the same second.⟧"
-              },
-              "original": "Fixed a memory leak where an HTTP MCP connection kept every request it had sent until it closed\nChanged the order of agent lists and of MCP servers announced to the model: names with non-ASCII characters now sort after ASCII names\nChanged OpenTelemetry `claude_code.at_mention` logging to emit at most 100 agent and 100 MCP-resource events each time a prompt is read\nSelf-hosted runner: Changed the orchestrator to sleep 4 to 6 seconds between polls instead of a constant 5, so several replicas for one environment stop polling at the same moment"
-            },
-            {
-              "title": {
-                "zh-TW": "[Claude Tag] Slack 跨區頻道修復，執行途中不中斷",
-                "en": "[Claude Tag] Slack Cross-Grid Channels Fixed, Executions Run Without Mid-Task Interruptions"
-              },
-              "body": {
-                "zh-TW": "在 Slack 頻道中與 Claude 協同作業或執行例行任務時，訊息指派與權限變更更平順。在跨工作區的 Enterprise Grid 共享頻道中，遇到未連線的工作區標籤時，Claude 不會再誤報工作區未設定。管理員在任務途中修改連接器、外掛、技能或規則時，Claude 不會中途停下，改為完成當前任務後才套用。在討論串帶備註觸發例行任務時，能正確在該串內接續執行與回報。當 Claude 加入僅限管理員發言的公告頻道時，會安靜加入而不主動發送自我介紹。⟦如同進駐專案會議室的得力助手，以前跨部門開會容易認錯窗口，主管更新規定還會當場罷工；現在把手邊工作完成才套用新規則，進到公告群組也不會發出噪音打擾。⟧",
-                "en": "Message routing and permission updates are smoother when collaborating with Claude or running routine tasks in Slack channels. In Enterprise Grid shared channels across multiple workspaces, Claude no longer erroneously reports that a workspace is unconfigured upon encountering an unconnected workspace tag. When administrators update connectors, plugins, skills, or rules mid-task, Claude avoids abrupt interruptions and instead applies changes after finishing the current task. Triggering routine tasks in threads with notes now reliably executes and reports back within the thread. When Claude joins announcement channels where only administrators can post, it joins quietly without posting an unprompted introduction. ⟦A dependable assistant assigned to a project room once misidentified department liaisons and abruptly stopped work when managers updated policies; now, it finishes current tasks before adopting new rules and enters announcement channels quietly without causing distractions.⟧"
-              },
-              "original": "[Claude Tag] Fixed Claude in Slack saying a workspace isn't set up in Enterprise Grid channels shared across workspaces when Slack labels a message with a workspace that isn't connected\n[Claude Tag] Fixed Claude in Slack stopping mid-task in a channel when an admin changed the channel's connectors, plugins, skills or rules; the change now applies once Claude finishes\n[Claude Tag] Fixed asking Claude in Slack to run a thread's routine now with extra notes starting a separate run that couldn't post back; the run now continues in that thread\n[Claude Tag] Changed Claude in Slack to join announcement channels, where only admins can post, without posting its intro"
-            },
-            {
-              "title": {
-                "zh-TW": "[Claude Tag] 管理後台規則放寬，連接器狀態更準確",
-                "en": "[Claude Tag] Admin Console Rules Relaxed, Connector Status Rendered Accurately"
-              },
-              "body": {
-                "zh-TW": "負責在後台管理 Claude Tag 權限與連接器的管理員，現在享有更大的設定彈性。單一工作區與全組織頁面的頻道規則上限從 20 條放寬至 50 條，能設定更細緻的規範。管理頁面現在會主動列出尚未連線的 Enterprise Grid，並提供 Connect 按鈕以供直接連線。在管理設定中，存取組合的 Add a connector 對話框（加入連接器的視窗）曾在一次 Google 登入後，將所有 Google 連接器誤標為已連線；這項顯示問題已修復。⟦彷彿管理主控台擴充了配電盤容量，不僅插槽數量大增，未接通的跨區線路也有專屬開關；加入插頭的面板不再因接通一個，就把所有 Google 插頭的燈號都誤亮。⟧",
-                "en": "Administrators managing Claude Tag permissions and connectors in the admin console now have greater configuration flexibility. The channel rule limit for individual workspaces and organization-wide pages has been raised from 20 to 50 rules, allowing more granular policies. The management page now proactively lists unconnected Enterprise Grids with a Connect button for direct linking. In admin settings, the Add a connector dialog (the modal for adding connectors) in access sets previously marked all Google connectors as connected following a single Google login; this display bug is now fixed. ⟦Envision an admin console expanding its electrical breaker capacity with substantially more slots and dedicated switches for unconnected cross-zone circuits; the plug installation panel no longer illuminates every Google indicator simply because one socket was plugged in.⟧"
-              },
-              "original": "[Claude Tag] Fixed an access bundle's Add a connector dialog in Claude Tag admin settings showing every Google connector as connected after one Google sign-in\n[Claude Tag] Improved Claude Tag admin settings to list an Enterprise Grid that isn't connected yet, with a Connect button\n[Claude Tag] Changed the limit on channel rules in Claude Tag admin settings from 20 to 50 for each workspace and for the organization-wide Slack page"
-            }
-          ]
         }
       ]
     },
@@ -557,6 +590,34 @@
       "id": "codex",
       "name": "Codex",
       "versions": [
+        {
+          "version": "0.162.1",
+          "period": "2026-10-09",
+          "items": [
+            {
+              "title": {
+                "zh-TW": "終端機顯示多行提問不再當機",
+                "en": "Terminal Displaying Multiline Prompts No Longer Crashes"
+              },
+              "body": {
+                "zh-TW": "當你在文字視窗等待背景任務，途中跳出落落長的確認提問時，畫面不會再突然卡死關閉。以前遇到非同步提問（程式在背後運作時插進來詢問意見的對話）包含多行文字，終端機文字介面常會直接當機。這個問題現在已經修好，訊息裡的換行排版會原樣保留，附帶的超連結完整網址也不會遺失。以前常因為介面當機而看不到完整問題，現在長內容與跳轉連結都能順利讀取。",
+                "en": "When you wait for background tasks in a text window and a lengthy confirmation prompt pops up along the way, the screen will no longer suddenly freeze and close. Previously, when asynchronous prompts (dialogues that interrupt to ask for input while programs run in the background) contained multiline text, the terminal text interface often crashed directly. This issue is now fixed, with line breaks in messages preserved as formatted and full URLs in attached hyperlinks no longer lost. While users previously often missed full questions due to interface crashes, long content and redirect links can now be read smoothly."
+              },
+              "original": "Fixed a TUI crash when asynchronous questions contain multiple lines, preserving line breaks and complete hyperlink destinations. (#51866)"
+            },
+            {
+              "title": {
+                "zh-TW": "命令列啟動不再因背景伺服器設定不同而失敗",
+                "en": "Command-Line Startup No Longer Fails Over Differing Background Server Settings"
+              },
+              "body": {
+                "zh-TW": "如果你習慣讓工具在背後持續運作，開新視窗輸入指令時，不必再擔心程式卡在開頭進不去。以前只要正在執行的背景伺服器與命令列介面（CLI，用文字指令操作的工具）預設設定不同，啟動就會報錯失敗。現在相容性檢查只會在命令列明確覆寫功能時才進行，啟動失敗的問題已經修好。以前常因預設值不同而被擋在門外，現在就算背景設定有別也能順利開啟。",
+                "en": "If you are used to letting tools run continuously in the background, you no longer need to worry about programs getting stuck at startup when entering commands in a new window. Previously, whenever the running background server and the command-line interface (tools operated with text commands) had different default settings, startup would fail with an error. Now, compatibility checks only run when the command line explicitly overrides features, and the startup failure issue has been fixed. While users were previously locked out due to differing default values, the tool can now launch smoothly even when background configurations differ."
+              },
+              "original": "Fixed startup failures caused by differences between a running background server's feature settings and CLI defaults. Compatibility checks now apply only to explicit command-line feature overrides. (#52648)"
+            }
+          ]
+        },
         {
           "version": "0.162.0",
           "period": "2026-10-08",
@@ -777,23 +838,6 @@
               "original": "Thread resume includes the latest committed history. Startup detects recoverable SQLite corruption earlier and preserves damaged databases as backups. (#49599, #49701)\nResponses retries and WebSocket-to-HTTP fallback honor server retry guidance, reducing premature failures during overload. (#49441)\nAuthentication guidance now accounts for keyring storage instead of implying credentials always reside in `auth.json`. (#49361)\nPublishing an older alpha or hotfix no longer moves npm alpha tags backward. (#49704)"
             }
           ]
-        },
-        {
-          "version": "0.160.1",
-          "period": "2026-10-05",
-          "items": [
-            {
-              "title": {
-                "zh-TW": "遠端啟動 MCP 工具時保留 Windows 系統變數",
-                "en": "Preserve Windows System Variables When Launching MCP Tools Remotely"
-              },
-              "body": {
-                "zh-TW": "當你從 Unix 主機透過遠端連線指派任務給 Windows 端的執行環境，並為工具指定專屬參數時，底層不再丟失系統運作必備的關鍵設定。⟦猶如向外縣市的合作工廠調度遠端機台，以前若隨單附上自己的專案參數，容易把對方廠房原本運作必備的總電源與暫存料架設定覆蓋掉；現在指派自訂參數時，會完整保留廠房原有的運作環境。⟧現在透過遠端 stdio 通道啟動 MCP（讓 AI 連接外部工具的協定）伺服器時，即使明確指定了遠端環境變數，系統也會自動保留 Windows 執行端的 SYSTEMROOT、TEMP 與 TMP 等核心環境變數。Unix 主機因此能完整維持 Windows 執行端的原生啟動環境，確保工具不會因為找不到系統路徑或暫存目錄而啟動失敗。",
-                "en": "When dispatching tasks from a Unix host to a Windows runtime environment over a remote connection and specifying custom parameters for tools, the underlying system no longer loses critical settings essential for system operation. ⟦Picture dispatching remote machinery at an out-of-town partner factory: previously, attaching custom project parameters to an order risked overwriting the facility's essential main power and temporary storage shelf settings; now, assigning custom parameters fully preserves the factory's original operating environment.⟧ Now when launching an MCP (a protocol for connecting AI to external tools) server over remote stdio channels, the system automatically preserves core Windows environment variables such as SYSTEMROOT, TEMP, and TMP, even when remote environment variables are explicitly specified. Unix hosts can thus fully maintain the native launch environment of the Windows runtime, ensuring tools do not fail to start due to missing system paths or temporary directories."
-              },
-              "original": "Preserve `SYSTEMROOT`, `TEMP`, and `TMP` when launching remote stdio MCP servers with explicitly configured remote environment variables, allowing Unix hosts to retain the Windows executor's startup environment."
-            }
-          ]
         }
       ]
     },
@@ -801,6 +845,111 @@
       "id": "agy",
       "name": "Antigravity",
       "versions": [
+        {
+          "version": "1.3.3",
+          "period": "2026-10-10",
+          "items": [
+            {
+              "title": {
+                "zh-TW": "回看長對話提示詞常駐置頂，點擊即跳回提問處",
+                "en": "Sticky Prompt Keeps Context Visible During Deep Scrollbacks, Clicking Jumps to Origin"
+              },
+              "body": {
+                "zh-TW": "在長篇對話裡向上捲動翻查舊紀錄，很容易讀著讀著就忘記眼前這段回答最初是在回應哪一道問題。現在處於無閃爍模式時，產生你正在閱讀的這則回覆的提示詞，會直接常駐在視窗頂部。⟦如同大型會議室白板最上方的題目標籤，以前往下滑動紀錄就看不見當初的問題，現在不管對話拉得多長，那道提問始終固定在視窗頂端，想對照時點一下就能瞬間回到原處。⟧翻閱冗長的分析報告時更能隨時掌握脈絡，點擊該標頭還能立刻跳轉回最初提問的位置。",
+                "en": "When scrolling up through long conversations to review past messages, it is easy to lose track of which prompt initiated the answer you are reading. In flicker-free mode, the prompt that generated the reply you are currently viewing now remains pinned to the top of the window. ⟦Like a topic banner fixed to the top of a conference whiteboard, where scrolling down previously hid the original question, the prompt now stays anchored at the top of the screen no matter how far the thread stretches, letting you jump back instantly with a single click.⟧ This preserves context when skimming lengthy analysis reports, and clicking the header takes you straight back to the original question."
+              },
+              "original": "Added a pinned prompt header in no flickering mode while you scroll back through a long conversation: the prompt that produced the response you're reading stays at the top of the transcript, and clicking it jumps back to that prompt."
+            },
+            {
+              "title": {
+                "zh-TW": "外接工具支援常駐載入，免去隨需探索的等待",
+                "en": "Always-Loaded Tools Eliminate On-Demand Discovery Latency"
+              },
+              "body": {
+                "zh-TW": "串接大量常用工具後，若每次發問都得等 AI 重新檢視清單才能上工，對話節奏難免被打斷。⟦好比木匠把最常用的捲尺直接插在工作圍裙口袋，以前每接一項委託都要跑回工具庫翻找盤點，現在一開工就能直接抽出使用。⟧現在 MCP（Model Context Protocol，讓 AI 連接外部工具的協定）伺服器能將高頻率使用的工具標記為常駐載入。只要在 `tools/list` 回覆的工具資料裡加入以下設定：\n```json\n{\"_meta\": {\"antigravity/alwaysLoad\": true}}\n```\n代理就能直接取得該項工具，不再需要於執行過程中臨時隨需探索。",
+                "en": "After connecting many frequently used tools, waiting for the AI to re-inspect the catalog before every query breaks the conversational flow. ⟦Think of a carpenter who keeps a tape measure right in an apron pocket, reaching for it instantly instead of walking back to rummage through the tool chest for every assignment.⟧ MCP servers can now mark high-frequency tools to be loaded permanently. By adding the following metadata to the tool payload in `tools/list` responses:\n```json\n{\"_meta\": {\"antigravity/alwaysLoad\": true}}\n```\nThe agent receives the tool immediately, eliminating runtime on-demand discovery."
+              },
+              "original": "Added support for MCP servers to mark a tool as always loaded by setting `_meta: {\"antigravity/alwaysLoad\": true}` on it in their `tools/list` response, so the agent gets that tool directly instead of discovering it on demand."
+            },
+            {
+              "title": {
+                "zh-TW": "macOS 沙盒預設鎖定應用程式支援目錄，杜絕密鑰外洩",
+                "en": "macOS Sandbox Blocks Application Support Directory by Default to Prevent Key Leaks"
+              },
+              "body": {
+                "zh-TW": "放手讓自動化指令在沙盒裡執行，許多人最在意的就是其他應用程式儲存的私密憑證會不會被看光。⟦彷彿給到府清潔工限制活動區域，以前對方能隨意翻動臥室梳妝台上的皮夾，現在預設只能在客廳打掃，不再碰得到你收在抽屜裡的私密證件。⟧macOS 上的桌面應用程式習慣將登入憑證與工作階段 token（授權令牌）存放在 `~/Library/Application Support` 目錄下。以前沙盒內的指令預設可以直接讀取該路徑，現在預設直接阻擋這項權限。如果你的特定腳本確實需要取用裡面的設定檔，依然可以在沙盒規則中明確手動放行。",
+                "en": "When allowing automated commands to run inside a sandbox, a primary concern is whether private credentials stored by other applications might be exposed. ⟦Picture restricting a home cleaner to specific rooms, cleaning only the living room by default rather than looking through a wallet left on the bedroom dresser, keeping private identification tucked away in drawers out of reach.⟧ Desktop applications on macOS typically store login credentials and session tokens in `~/Library/Application Support`. Sandboxed commands previously had read access to that path by default, but this access is now blocked. If a specific script genuinely requires access to configuration files in that path, you can still grant permission explicitly in sandbox rules."
+              },
+              "original": "Changed the macOS terminal sandbox to block sandboxed commands from reading `~/Library/Application Support` by default, since desktop apps keep credentials and session tokens there; previously it was readable, and you can still allow it explicitly in your sandbox rules."
+            },
+            {
+              "title": {
+                "zh-TW": "外掛支援宣告子代理，管理介面搜尋與驗證更順手",
+                "en": "Plugins Support Declaring Subagents, Management Interface Improves Search and Validation"
+              },
+              "body": {
+                "zh-TW": "為團隊量身製作外掛時，往往需要同時打包專屬的子代理、技能設定與運作規則。現在外掛根目錄支援建立 `agents.json`，讓作者能像以往用 `skills.json` 和 `rules.json` 宣告技能與規則那樣，直接宣告專屬的子代理。在 `/plugin` 指令的「已安裝」分頁中，搜尋體驗也更加順手。你現在能在搜尋關鍵字裡輸入空格，按下 `Enter` 結束搜尋後，用 `Space` 空白鍵即可切換啟用選取的外掛，按 `Enter` 展開查看詳細資訊，直接再次打字便能繼續搜尋。執行 `agy plugin validate` 驗證與瀏覽清單時，以前容易漏掉在 `plugin.json` 裡透過 `skills` 欄位宣告的技能，或者忽略了 `skills.json` 的排除項目；現在這些顯示已與實際載入的技能完全一致，同時修復了匯入外掛時可能遺失結果的競爭問題。",
+                "en": "Tailoring a plugin for a team often requires packaging dedicated subagents, skills, and operational rules together. Plugins now support an `agents.json` file in their root directory, enabling authors to declare subagents directly, just as they declare skills and rules via `skills.json` and `rules.json`. In the Installed tab of the `/plugin` command, searching is also more intuitive. You can now include spaces in search queries, press `Enter` to finish searching, toggle the selected plugin with `Space`, press `Enter` to expand details, or type again to continue searching. When running `agy plugin validate` to verify and inspect the list, skills declared through the `skills` field in `plugin.json` or excluded in `skills.json` were previously sometimes overlooked; the validation display now matches loaded skills, and a race condition that could drop imported plugin results has been fixed."
+              },
+              "original": "Added support for a root-level `agents.json` in plugins, so a plugin can declare its subagents the same way it declares skills and rules with `skills.json` and `rules.json`.\nImproved search in the `/plugin` Installed tab: you can now type spaces in a search query, press `Enter` to finish searching, then use `Space` to toggle the selected plugin and `Enter` to expand its details; start typing again to resume the search.\nFixed `agy plugin validate` and plugin listings missing skills declared through the `skills` field in `plugin.json` or ignoring `skills.json` exclusions, so they now match the skills that actually load, and fixed a race that could drop results when importing plugins."
+            },
+            {
+              "title": {
+                "zh-TW": "子代理工作區落實獨立隔離，停止時即刻清理待審批",
+                "en": "Subagent Workspaces Enforce Full Isolation, Stopping Clears Pending Approvals Promptly"
+              },
+              "body": {
+                "zh-TW": "背景子代理在多個專案同時動工，一旦動到你目前正在編輯的原始檔案，後續排查將會苦不堪言。⟦正如把工程圖紙影印給外包助理各自標記，以前助理可能直接在你的原稿上塗改，現在每組人都拿到獨立的工作影本，各自施工互不干擾。⟧在包含多個版本庫的工作區中，以往用 `branch` 或 `share` 工作區模式啟動的子代理，會在背後悄悄動用你的真實簽出目錄；現在這項問題已經修正，每個版本庫都會獲得專屬的隔離複本。當你手動停止子代理時，以前若對方還有未完成的審批請求，該代理會一直留在活躍清單裡；現在只要一下令停止，所有等待審批的事項都會立即清空，代理名單也不再殘留。",
+                "en": "When background subagents operate across multiple projects, modifying files you are currently editing makes troubleshooting difficult. ⟦A team lead hands distinct photocopies of blueprints to contractor assistants, ensuring each team marks up an independent working copy without altering the master drawing.⟧ In workspaces with multiple repositories, subagents launched in `branch` or `share` workspace mode previously operated against your actual checkout directories behind the scenes; this is now fixed, giving each repository its own isolated copy. When you stop a subagent manually, unresolved approval requests previously kept it lingering in the active list; issuing a stop command now clears all pending approvals immediately, cleanly removing the subagent."
+              },
+              "original": "Fixed subagents started with a `branch` or `share` workspace in a multi-repository workspace silently working in your real checkout; each repository now gets its own isolated copy.\nFixed a stopped subagent staying in the active agents list while it still had an approval pending; stopping it now clears its pending approvals right away."
+            },
+            {
+              "title": {
+                "zh-TW": "斜線指令異常回報精準化，順口提問不再觸發掛鉤",
+                "en": "Slash Commands Sharpen Error Reporting, Incidental Queries Avoid Triggering Hooks"
+              },
+              "body": {
+                "zh-TW": "敲下斜線指令卻敲錯目錄路徑，如果工具悶不吭聲假裝成功，很容易讓人誤判環境現況。執行 `/add-dir` 加入目錄時，以前就算輸入了根本不存在的路徑或一般檔案，工具依然會宣稱新增成功；現在它會老實回報 `directory not found` 或 `not a directory`。利用 `/btw` 順口插話詢問旁支問題時，以前會誤跑你的使用者與工作區 hook（掛鉤，特定事件發生時被觸發的小程式），導致停止掛鉤陷入迴圈或讓簡單提問多出額外步驟，這項問題如今已被修正。輸入 `/keybindings` 查看快捷鍵時，若找不到設定的編輯器，不再毫無反應地靜默跳過，而是會主動顯示錯誤。當 `/diff` 備援（fallback）的 `git diff` 也執行失敗時，現在會顯示索引損壞等真實肇因，不再誤報成 `git diff HEAD` 的錯誤訊息。",
+                "en": "When entering a slash command with an invalid directory path, a silent mock success can lead to incorrect assumptions about the environment. When running `/add-dir`, entering a nonexistent path or a regular file previously reported success anyway; it now explicitly returns `directory not found` or `not a directory`. Asking side questions with `/btw` previously triggered user and workspace hooks, causing stop hooks to loop or adding unnecessary overhead to simple inquiries, an issue that is now resolved. Running `/keybindings` to view keyboard shortcuts now displays an error if the configured editor cannot be located instead of failing silently. When the `git diff` fallback for `/diff` fails, it now displays the actual underlying cause, such as index corruption, instead of misreporting an error with `git diff HEAD`."
+              },
+              "original": "Fixed `/add-dir` claiming it added a path that doesn't exist or isn't a directory; it now reports `directory not found` or `not a directory`.\nFixed `/btw` side questions running your user and workspace hooks, which could make hooks such as stop hooks loop or add extra steps to a quick question.\nFixed `/keybindings` silently doing nothing when the configured editor can't be found; it now shows an error.\nFixed `/diff` showing the error from `git diff HEAD` instead of the real cause, such as a corrupt index, when the fallback `git diff` also fails."
+            },
+            {
+              "title": {
+                "zh-TW": "連線與認證錯誤顯示更明確，用盡額度不再盲目重試",
+                "en": "Connection and Authentication Errors Surface Clearer Details, Exhausted Quotas Halt Retries"
+              },
+              "body": {
+                "zh-TW": "遇到企業代理伺服器阻擋時，主控台若被整段 HTML 原始碼淹沒，很難第一時間掌握原因。現在遇到這類錯誤頁面只會顯示網頁標題，其他過長的非 JSON 錯誤內容也會在 500 個位元組處截斷。個人配額（quota，使用額度）用盡時會立刻回報，不再反覆重試。工作階段中若登入憑證過期或被撤銷，現在會明確提示 `Authentication expired. Please log back in.`，且背景中正在傳輸的權杖更新也不會還原失效憑證。使用 `AGY_ADC_AUTH` 應用程式預設憑證登入時，因遠端控制尚未支援，加上 `--remote-control` 參數會清楚退出並說明原因，選單中的 `/remote-control` 指令也會自動隱藏。",
+                "en": "When an enterprise proxy blocks requests, drowning the console in raw HTML makes identifying the cause difficult. Error pages now display only the page title, and other excessively long non-JSON error bodies are truncated at 500 bytes. When personal quota is exhausted, the system reports it immediately instead of retrying repeatedly. If login credentials expire or are revoked during a session, the system now provides an explicit `Authentication expired. Please log back in.` notice, and background token refresh transmissions will not restore invalid credentials. Because remote control is not supported when authenticating with `AGY_ADC_AUTH` application default credentials, passing `--remote-control` now exits cleanly with an explanation, and `/remote-control` is automatically hidden from menus."
+              },
+              "original": "Improved error messages: a request that fails with an HTML error page, for example from a corporate proxy, now shows the page title instead of the raw HTML, other long non-JSON error bodies are cut off after 500 bytes, and reaching your individual quota is reported right away instead of being retried.\nFixed an expired or revoked sign-in showing an unclear error mid-session; the agent now says `Authentication expired. Please log back in.`, and a token refresh that was already in flight no longer restores the expired credentials.\nFixed `--remote-control` failing when you sign in with Application Default Credentials (`AGY_ADC_AUTH`); Remote Control doesn't support ADC yet, so the flag now exits with a clear error and the `/remote-control` command is hidden."
+            },
+            {
+              "title": {
+                "zh-TW": "終端機分頁卡死問題修復，快捷鍵與跨系統執行更穩定",
+                "en": "Terminal Pager Hangs Resolved, Shortcut Keys and Cross-Platform Runs Gain Stability"
+              },
+              "body": {
+                "zh-TW": "在終端機裡執行版本控制或自訂按鍵，跨平台環境的細微落差常會導致畫面莫名卡死。代理執行 Jujutsu 的 `jj diff` 或 `jj log` 等指令時，以往容易卡在互動式分頁器；現在指令會自動帶上 `JJ_PAGER=cat`，與既有的 `PAGER` 和 `GIT_PAGER` 並列輸出。在 macOS 的 Terminal.app 或 VS Code 終端機裡，因系統未將 Option 視為 Meta 鍵而導致 `alt+s` 等自訂快捷鍵失效的問題現已修正。在 Windows 上若從微軟商店安裝 PowerShell 7，沙盒指令過去會跳出 `Access is denied.`，現在會自動備援切回 Windows PowerShell 順利執行。",
+                "en": "Running version control commands or custom key combinations in the terminal can freeze unexpectedly due to subtle cross-platform differences. When the agent ran Jujutsu commands like `jj diff` or `jj log`, it often hung on interactive pagers; commands now pass `JJ_PAGER=cat` automatically, matching existing handling for `PAGER` and `GIT_PAGER`. In macOS Terminal.app and VS Code terminals, custom shortcuts such as `alt+s` failing because the system did not treat Option as a Meta key have been resolved. On Windows, sandboxed commands executed with PowerShell 7 installed from the Microsoft Store previously encountered `Access is denied.`; execution now automatically falls back to Windows PowerShell."
+              },
+              "original": "Fixed Jujutsu (`jj`) commands run by the agent, such as `jj diff` or `jj log`, hanging in an interactive pager; agent commands now set `JJ_PAGER=cat` alongside `PAGER` and `GIT_PAGER`.\nFixed custom `alt` keybindings such as `alt+s` not working with the macOS Option key in terminals that don't treat Option as Meta, such as Terminal.app and VS Code-based terminals.\nFixed sandboxed commands failing with `Access is denied.` on Windows when PowerShell 7 was installed from the Microsoft Store; the agent now falls back to Windows PowerShell in that case."
+            },
+            {
+              "title": {
+                "zh-TW": "終端機連結跳轉更精準，步驟與程式碼搜尋計數不再失真",
+                "en": "Terminal Links Jump Accurately, Step and Code Search Counts Correct Singular Forms"
+              },
+              "body": {
+                "zh-TW": "對話記錄裡的檔案路徑若能精確對應程式碼行號，點擊除錯的過程就會省下許多來回對照的功夫。回覆文字中的檔案連結如果帶有百分比編碼的行號錨點，例如 `file.go%23L795`，以前標籤常顯示不正常。現在標籤會清楚顯示行號，點擊後也能精準開啟並跳至指定行數。在支援可點擊連結的終端機裡，若畫面上有多個指向相同網址的獨立連結，以往滑鼠懸停在其中一個上面時會導致全部連結一起被突顯反白，如今各個連結已能獨立反應。工具執行步驟與 `/codesearch` 面板上的英文單數計數也完成了校正，單一項目會正確顯示為 Found 1 result、1 match、1 file 與 Wrote 1 line，不再出現複數結尾的贅字，同時修正了建立檔案步驟中行數多報一行的問題。",
+                "en": "When file paths in conversation transcripts point accurately to code line numbers, clicking to debug saves considerable manual cross-referencing. In response text, file links with percent-encoded line number anchors, such as `file.go%23L795`, previously failed to render their labels correctly. Labels now display line numbers clearly, and clicking them opens and navigates directly to the specified line. In terminals that support clickable links, hovering over one of several independent links pointing to the same URL previously highlighted all of them; links now react independently. Tool execution steps and the `/codesearch` panel have also corrected English singular counts, properly showing Found 1 result, 1 match, 1 file, and Wrote 1 line without plural suffixes, while fixing an issue where file creation steps overreported line counts by one."
+              },
+              "original": "Fixed file links in agent responses whose line anchor was percent-encoded, such as `file.go%23L795`; the label now shows the line number and the link opens the correct line.\nFixed separate links to the same URL highlighting together when you hover over one of them in terminals that support clickable links.\nFixed counts in tool steps and the `/codesearch` panel, which now read \"Found 1 result\", \"1 match\", \"1 file\", and \"Wrote 1 line\" instead of \"1 results\", and the file-creation step reporting one line too many."
+            }
+          ]
+        },
         {
           "version": "1.3.2",
           "period": "2026-10-09",
@@ -988,56 +1137,6 @@
               "original": "Fixed `GEMINI_API_KEY` sessions failing a turn as if you had cancelled it when the connection to the Gemini API was dropped internally; the CLI now retries the request instead."
             }
           ]
-        },
-        {
-          "version": "1.3.0",
-          "period": "2026-10-06",
-          "items": [
-            {
-              "title": {
-                "zh-TW": "對話畫面預設精簡，思考與工具呼叫自動收攏",
-                "en": "Compact conversation view by default, collapsing thought processes and tool calls"
-              },
-              "body": {
-                "zh-TW": "當你打開終端機與 AI 對話時，眼前不再被連篇累牘的內部推導塞滿。系統將詳細程度（Verbosity，控制終端機顯示資訊多寡的選項）預設值從 high 改為 medium。現在對話檢視畫面會把相關的工具呼叫與思考過程收攏成精簡摘要，同時完整保留執行的指令與回覆內容。⟦好比翻閱會議紀錄，以前攤開來是滿紙的討論推導與喃喃自語，現在秘書預先將過程收整成條列摘要，只留下關鍵結論與執行動作，需要對帳時再翻開完整逐字稿。⟧這項調整適用於從未設定過詳細程度的人，以及過去在 high 還是預設值時選取過 high 的使用者。若你想重新看見完整的工具呼叫、指令與思考過程，隨時能在 `/config` 設定中把 Verbosity 切換回 high。",
-                "en": "When you open the terminal to chat with the AI, your screen is no longer flooded with endless internal reasoning. The system changes the default Verbosity from high to medium. The conversation view now collapses related tool calls and thought processes into compact summaries, while fully preserving executed commands and response content. ⟦Picture reading meeting minutes where, instead of pages of sprawling deliberations and stream-of-consciousness notes, an assistant has neatly condensed the discussion into bullet points, surfacing only key conclusions and action items while keeping the verbatim transcript available if you need to check details.⟧ This change applies to users who have never configured verbosity, as well as those who selected high when high was the default. If you want to see the full tool calls, commands, and thought processes again, you can switch Verbosity back to high at any time in `/config`."
-              },
-              "original": "Changed the default `Verbosity` setting from `high` to `medium`, so the conversation view now groups related tool calls and thoughts into concise summaries while keeping commands and responses visible. This applies to everyone who never picked a verbosity, including anyone who selected `high` while it was still the default; set `Verbosity` back to `high` in `/config` to see every tool call, command, and thought in full again."
-            },
-            {
-              "title": {
-                "zh-TW": "版本比對按鍵調整，改用上下鍵與 jk 逐行瀏覽",
-                "en": "Diff view navigation update, using Up/Down and jk to browse line by line"
-              },
-              "body": {
-                "zh-TW": "你在終端機裡用 `/diff` 檢查程式碼更動時，鍵盤操作手感現在更加直覺統一。檔案檢視畫面中的 `j` 與 `k` 鍵改為移動行游標，操作方式如同鍵盤上的上下方向鍵。這樣能完全對齊檔案清單以及 Vim（常見的終端機文字編輯器）的操作習慣，不再按一下就直接跳到上一個或下一個檔案。⟦彷彿翻閱附有頁籤的活頁文件夾，以前按上下鍵會突然抽換整份文件，現在上下翻動只在當前頁面逐行游移，切換整份文件則改用左右撥動頁籤。⟧如果想在不同檔案之間切換，改用左右方向鍵即可平順跳轉。",
-                "en": "When inspecting code changes with `/diff` in the terminal, keyboard navigation is now more intuitive and consistent. The `j` and `k` keys in the file view now move the line cursor, behaving just like the up and down arrow keys. This aligns with the file list and standard Vim navigation habits, preventing accidental jumps to the previous or next file with a single keystroke. ⟦Think of browsing a tabbed binder where pressing the up and down keys previously swapped out the entire document, whereas now moving up and down simply navigates line by line within the current page, leaving document switching to flipping tabs left and right.⟧ To switch between different files, simply use the left and right arrow keys to jump smoothly."
-              },
-              "original": "Changed `j` and `k` in the `/diff` file view to move the line cursor like the up and down arrow keys, matching the file list and Vim, instead of jumping to the next or previous file; use the left and right arrow keys to switch files."
-            },
-            {
-              "title": {
-                "zh-TW": "對話畫面捲動修復，遠端連線不再前後亂跳",
-                "en": "Conversation view scrolling fix, eliminating erratic jumps over remote connections"
-              },
-              "body": {
-                "zh-TW": "當你透過觸控板或滑鼠滾輪瀏覽長篇對話時，畫面滾動變得穩定滑順。以前在 SSH（遠端連線協定）或 tmux 終端環境下，斜向滑動容易造成畫面忽前忽後跳動。現在系統會忽略對角滑動時的水平分量，並限制單次快速滾動的最大距離，徹底解決畫面抖動問題；按 `Page Up` 與 `Page Down` 鍵則依舊維持移動一整頁。",
-                "en": "Scrolling long conversations with a trackpad or mouse wheel is now stable and smooth. Previously under SSH or tmux terminal environments, diagonal swipes could cause the screen to jump erratically back and forth. The system now ignores the horizontal component of diagonal swipes and caps the maximum distance of a single rapid scroll, completely resolving jitter issues; pressing `Page Up` and `Page Down` continues to scroll by a full page as before."
-              },
-              "original": "Fixed trackpad and mouse-wheel scrolling in the conversation view jumping back and forth, most noticeably over SSH or inside tmux, by ignoring the sideways part of diagonal swipes and limiting how far a single fast scroll step can move; `Page Up` and `Page Down` still move a full page."
-            },
-            {
-              "title": {
-                "zh-TW": "特殊字元路徑修復，空格與特殊符號皆能正確開啟",
-                "en": "Special character path fixes, correctly opening files with spaces and symbols"
-              },
-              "body": {
-                "zh-TW": "當專案路徑包含空格、`#`、`%` 等特殊字元，或是存放在 Windows 磁碟機時，各項命令行功能現在都能正常運作。以前在此類路徑下，CLI（終端機介面）常會解析錯誤或找不到檔案。現在不管是 `@` 檔案標註、`/codesearch` 搜尋結果，還是代理回覆裡的檔案連結，都能準確開啟目標檔案；工作區信任機制與專案專屬自訂代理，也能正確辨識在這些資料夾中透過 Antigravity 桌面應用程式建立的專案。",
-                "en": "When project paths contain spaces, special characters such as `#` and `%`, or reside on Windows drives, all command-line features now function properly. Previously with such paths, the CLI often encountered parsing errors or failed to find files. Now, whether using `@` file mentions, `/codesearch` results, or file links in agent responses, target files open accurately; workspace trust mechanisms and project-specific custom agents also correctly recognize projects created in these folders via the Antigravity desktop application."
-              },
-              "original": "Fixed files and folders whose paths contain spaces, `#`, `%`, or other special characters, or that sit on a Windows drive, being mishandled across the CLI: `@` file mentions, `/codesearch` results, and file links in agent responses now open the right file, and workspace trust and project-scoped custom agents now recognize projects created in the Antigravity desktop app in such folders."
-            }
-          ]
         }
       ]
     },
@@ -1045,6 +1144,56 @@
       "id": "usage",
       "name": "Usage",
       "versions": [
+        {
+          "version": "0.33.3",
+          "period": "2026-10-09",
+          "items": [
+            {
+              "title": {
+                "zh-TW": "選單列常駐更輕巧，減輕處理器與記憶體負擔",
+                "en": "Menu bar footprint is lighter, easing CPU and memory load"
+              },
+              "body": {
+                "zh-TW": "長時間開著電腦工作，常駐在選單列的工具往往在不知不覺中吃掉大把電力與運算效能。⟦如同請了一位細心管家，以前客廳沒人也每分鐘全屋清點三次，離開房間還開著每盞燈；現在物品變動才核對，走出房門隨手關燈。⟧以前面板關閉時，每次刷新要花約 1.2 秒處理器時間，一分鐘可跑三次，工作時平均吃掉約 6% 運算效能。現在增量掃描不再因個別檔案變動就重列所有 Muse 工作階段，工作階段有變才重新解析，並把查好的 Claude 專案名稱放進快取（把算過或查過的結果暫存起來直接用），穩定狀態下刷新只要約 0.13 秒。關閉面板後，以前切換過的面板會各自殘留 WebKit 程序，最多達六個且佔用約 400 MB 記憶體；現在關閉後只保留目前這款，開著時切換的體驗維持不變。",
+                "en": "When working on a computer for long hours, tools residing in the menu bar often drain significant power and processing capacity unnoticed. ⟦Think of hiring a meticulous housekeeper: previously, even when the living room was empty, they did a full inventory three times a minute and left every light on after leaving a room; now, they only check inventory when items change and turn off lights upon leaving.⟧ Previously, when the popover was closed, each refresh consumed about 1.2 seconds of CPU time and could run three times a minute, taking up an average of about 6% of compute capacity during work. Now, incremental scanning no longer re-lists all Muse sessions whenever an individual file changes; it only re-parses when sessions change and caches retrieved Claude project names, reducing steady-state refresh time to about 0.13 seconds. After closing the popover, previously switched popovers each left behind WebKit processes, reaching up to six processes and consuming about 400 MB of memory; now only the current one is retained after closing, while the switching experience remains unchanged when open."
+              },
+              "original": "**usage uses far less CPU while it sits in the menu bar.** With the panel closed, a refresh took about 1.2 s of CPU and could run three times a minute, about 6% CPU on average while you work. Incremental history scans no longer list every Muse session again for each changed file, Muse sessions are reparsed only when they change, and resolved Claude project names are cached. A steady-state refresh now takes about 0.13 s.\n**Closing the panel frees the memory of panels you browsed.** Each panel you switched to kept its own WebKit process after the panel closed, up to six and about 400 MB. Now only the current panel stays loaded once the panel closes. Switching while it is open is unchanged."
+            },
+            {
+              "title": {
+                "zh-TW": "Claude Desktop 額度穩定讀取，過期或被鎖檔不再缺漏",
+                "en": "Claude Desktop quota reads reliably, no longer dropping when expired or locked"
+              },
+              "body": {
+                "zh-TW": "現在追蹤 Claude Desktop 用量，不必再擔心額度數字莫名變空白或紀錄突然中斷。即使方案歷史紀錄已過期，只要最新歷史組織仍有新鮮的本機 HTTP 額度回應，就能繼續顯示百分比與重置時間；至於過期回應、無效組織以及其他帳號的快取（把查過的結果暫存起來直接用），則依然不會提供資料。當本機快取資料量超出第一個項目檔時，新的額度回應可能會被寫入 Chromium 的接續檔案，以前會因此漏掉，現在也能順利找到並讀取。遇到 Claude 紀錄檔短暫被鎖住時，例如 Windows 防毒軟體正在背景掃描，以前用量會一直缺漏直到檔案變更或重開軟體，現在會在下次刷新時自動重試讀取。以前你會卡在防毒軟體一掃描或快取一分卷就看不到額度、非得重開程式才能恢復，現在這些邊緣狀況都能自動銜接，讓你隨時看得到剩餘額度。",
+                "en": "When tracking Claude Desktop usage, you no longer have to worry about quota numbers mysteriously turning blank or records suddenly dropping out. Even if plan history is expired, percentage and reset time continue to display as long as the latest historical organization still has fresh local HTTP quota responses; expired responses, invalid organizations, and caches from other accounts will still not provide data. When local cache data exceeds the first entry file, new quota responses may be written to Chromium continuation files; previously missed, they are now located and read smoothly. When Claude log files are temporarily locked, such as during background scans by Windows antivirus software, usage previously stayed missing until files changed or the app was restarted; it now automatically retries reading on the next refresh. Where you previously lost sight of your quota whenever antivirus scanned or the cache split into multiple volumes—forcing an app restart to recover—these edge cases are now handled seamlessly so your remaining quota stays visible."
+              },
+              "original": "**Claude Desktop quota remains available when plan history stops updating.** A fresh local HTTP quota response for the latest history organization can now supply percentages and reset times even after the history sample expires. Expired responses, invalid organizations and another account's cache still return no data.\n**Claude Desktop quota finds responses in Chromium's follow-on cache files.** Once the cache outgrew its first entry file, a fresh quota response could sit in a follow-on file and be missed.\n**A Claude log that cannot be read is retried on the next refresh.** A brief lock, for example an antivirus scan on Windows, used to leave that file's usage missing until the file changed or usage restarted."
+            },
+            {
+              "title": {
+                "zh-TW": "模型計費回歸實際執行，報表名稱與定價不再漏失",
+                "en": "Model billing reflects actual execution, keeping report names and pricing intact"
+              },
+              "body": {
+                "zh-TW": "如果在 AI 費用明細裡看到一長串難懂的原始代碼，甚至換了模型卻被整筆高價計費，肯定讓人一頭霧水。⟦猶如請不同專長師傅接力修繕，以前只要後半段換了資深師傅，前半段學徒做的一律全照資深工資收費；現在每一段工時都按實際動手的師傅計價，帳單上也直接印出清楚簡稱。⟧當你在 Codex 對話中途切換模型時，用量現在會依照實際執行的模型分別計價；以前較早的回合會全部照該工作階段（session，一段持續對話的互動歷程）最後使用的模型來算，這次更新後會重新解析一次 Codex 歷史紀錄以修正帳目。Claude Haiku 5.5 也有了專屬定價與簡稱，連不上線上價目表時費用不會再消失，報表也會直接顯示簡稱而非原始模型 ID。而自動啟動 5 小時計時的提示與對話框，針對 Antigravity 也已正確改標為 Gemini 3.8 Flash Low。",
+                "en": "Seeing cryptic raw IDs on an AI expense breakdown—or being billed entirely at higher rates after switching models—is bound to cause confusion. ⟦Picture specialized craftspeople taking turns on a renovation: previously, switching to a senior specialist midway meant earlier work by an apprentice was billed entirely at senior rates; now, each segment of labor is priced by who actually performed the work, and invoices clearly print clean short names.⟧ When you switch models mid-conversation in Codex, usage is now priced separately according to the model that actually ran. Earlier turns were previously billed entirely under the session's final model, but this update re-parses Codex history to correct the records. Claude Haiku 5.5 now has dedicated pricing and a short name; costs no longer disappear when offline from online pricing tables, and reports display its short name instead of the raw model ID. Additionally, prompts and dialogs that auto-start a 5-hour timer are now correctly relabeled as Gemini 3.8 Flash Low for Antigravity."
+              },
+              "original": "**Claude Haiku 5.5 has prices and a short name.** Its cost no longer drops out when the online price table is unreachable, and reports show \"Haiku 5.5\" instead of the raw model ID. The Auto-start 5-hour Session tooltip and dialog now name Gemini 3.8 Flash Low for Antigravity.\n**Codex usage after a mid-session model switch is priced with the model that ran it.** Earlier turns were priced as the session's latest model. Codex history is reparsed once after this update."
+            },
+            {
+              "title": {
+                "zh-TW": "面板右鍵選單移除重新載入，不再讓面板變空白",
+                "en": "Reload removed from popover context menu, preventing blank screens"
+              },
+              "body": {
+                "zh-TW": "許多人習慣在小工具畫面上按右鍵重新整理，以前這個動作卻可能讓面板變成一片空白。⟦就像遙控器上留了一顆容易誤觸的工程按鍵，以前隨手碰到會讓電視畫面變成一片空白，現在直接拆掉那顆按鈕，怎麼按都不怕出問題。⟧先前 v0.22.5 雖然曾嘗試修正這項問題，卻因為查錯了選單項目的屬性，導致你在面板上點擊滑鼠右鍵選擇『重新載入』時，依然會讓整個面板變成空白畫面。右鍵選單裡的『重新載入』已移除，這個問題已經修好。",
+                "en": "Many users are used to right-clicking on widget screens to refresh, but this action previously risked turning the popover completely blank. ⟦Consider an easily bumped engineering button left on a remote control: previously, an accidental touch turned the TV screen blank, but removing that button entirely ensures nothing goes wrong no matter what you press.⟧ Although v0.22.5 previously attempted to address this issue, checking the wrong menu item property meant that right-clicking on the popover and selecting 'Reload' still caused the entire popover to become a blank screen. 'Reload' has now been removed from the context menu, fixing this issue."
+              },
+              "original": "**The panel's right-click menu no longer offers Reload.** The v0.22.5 fix looked up the wrong menu item property, so right-click > Reload still blanked the panel (#42)."
+            }
+          ]
+        },
         {
           "version": "0.33.2",
           "period": "2026-10-08",
@@ -1120,56 +1269,6 @@
                 "en": "When looking for Claude Code's mode switches on Windows, you can now operate them straight from the system tray menu. The \"Claude Code\" submenu in the system tray menu now includes both the newcomer mode and quota-aware mode toggles, grouped together with the side panel so the experience matches macOS directly. Once quota-aware mode is on, the system can also read the quota status of Codex and Antigravity across tools on Windows, helping you track the consumption progress of different assistants in one place. ⟦Think of a unified toggle added to a multi-function dashboard: before, checking each tool's usage meant opening tabs one by one to compare them yourself, but now you open a single drawer to switch modes directly, and even the remaining fuel of the other helpers gets read along the way.⟧"
               },
               "original": "**Windows gets Beginner Mode and Quota-Aware Mode switches.** They sit with the side pane under a **Claude Code** submenu in the tray menu, as on macOS. On Windows, Quota-Aware Mode now also sees Codex and Antigravity quota."
-            }
-          ]
-        },
-        {
-          "version": "0.33.0",
-          "period": "2026-10-07",
-          "items": [
-            {
-              "title": {
-                "zh-TW": "新手模式帶你看懂專有名詞，搭配隨堂測驗加深記憶",
-                "en": "Beginner mode explains technical terms and reinforces memory with quick quizzes"
-              },
-              "body": {
-                "zh-TW": "剛開始接觸指令列工具時，終端機跳出的艱澀字詞常讓人看得一頭霧水。macOS 版現在新增預設關閉的新手模式，在 Claude Code 回答完後，會在輸入框上方挑出最多 3 個專有名詞，並附上一行與介面相同語言的白話解釋。你可以按 9 標記為懂了，略過的名詞會在 1、3、7 天後再次出現。隨時輸入 `/terms` 就能翻閱名詞紀錄。開啟新對話時，可以針對你已標記懂了的名詞，在 7、21、60 天後出一題選擇題，一天最多一題，答錯的名詞則會重新回到提示清單。挑選名詞會透過你的 Claude Code 請 Claude Haiku 協助並消耗少量額度，當 5 小時額度達到 90% 以上時會自動暫停。⟦跟用單字卡箱複習生字一樣，以前看過的名詞容易轉頭就忘，現在標記懂了後按既定間隔複習，答錯的卡片則回到提示清單。⟧",
-                "en": "When first using command-line tools, obscure terms appearing in the terminal often feel confusing. The macOS version adds a beginner mode that is off by default. After Claude Code finishes responding, it picks up to 3 technical terms above the input box and provides a one-line plain-language explanation in the same language as your interface. You can press 9 to mark a term as understood, while skipped terms reappear after 1, 3, and 7 days. Entering `/terms` at any time lets you browse your term history. When starting a new conversation, it can present one multiple-choice question on terms you marked as understood after 7, 21, and 60 days, up to one question per day, and incorrectly answered terms return to the hint list. Selecting terms asks Claude Haiku for assistance through your Claude Code and consumes a small amount of quota, automatically pausing when the 5-hour quota reaches 90% or higher. ⟦Like reviewing vocabulary with a flashcard box, terms seen before were once easy to forget quickly, but now marking them as understood reviews them at set intervals, with missed cards returning to the hint list.⟧"
-              },
-              "original": "**Beginner Mode helps you read Claude Code's answers.** After an answer, up to three technical terms appear above the prompt, each with a one-line plain explanation in your UI language. Press 9 to mark them understood; skipped terms come back after 1, 3, then 7 days. `/terms` opens your term history. Picking terms asks Claude Haiku through your Claude Code, so it uses a little Claude quota, and it pauses while your 5-hour quota is at 90% or more. macOS, off by default.\n**Beginner Mode quizzes you on terms you understood.** A new conversation can open with a one-question multiple-choice quiz on a term you marked understood, 7, 21, then 60 days later, at most one a day. A wrong answer puts the term back in the hints."
-            },
-            {
-              "title": {
-                "zh-TW": "額度快用完時主動通報，讓 AI 開大任務前先跟你商量",
-                "en": "Proactive quota notifications let AI consult you before starting large tasks"
-              },
-              "body": {
-                "zh-TW": "當你準備把一整份複雜專案交給 AI 處理時，最怕做到一半突然撞上限額而中斷。macOS 版新增預設關閉的額度感知模式，當 5 小時額度超過 80%、90%、95%，或週額度超過 95% 時，Claude Code 就會收到一行提示，寫明剩餘額度與重置時間。在展開大型任務前，Claude 會先提醒你額度吃緊，由你選擇先做局部小任務或等待重置。這項功能支援 Claude Code、Codex 與 Antigravity，每個額度門檻在同一個對話中只會通報一次，且不會產生額外的模型呼叫。⟦彷彿開車上高速公路時儀表板主動亮燈，以前油箱見底你可能還毫不知情，現在副駕駛會提早報出剩餘油量與下個加油站距離，好決定先換小路或等補給。⟧",
-                "en": "When handing an entire complex project to AI, the biggest worry is being interrupted halfway through by hitting limits. The macOS version adds a quota-aware mode that is disabled by default. When the 5-hour quota exceeds 80%, 90%, or 95%, or the weekly quota exceeds 95%, Claude Code receives a one-line prompt specifying remaining quota and reset time. Before starting large tasks, Claude warns you that quota is tight, leaving you to choose between tackling smaller subtasks first or waiting for a reset. This feature supports Claude Code, Codex, and Antigravity, reporting each quota threshold only once per conversation without generating extra model calls. ⟦Picture a dashboard lighting up while driving on the highway; previously you might not notice an empty tank, but now a co-pilot announces remaining fuel and distance to the next station early so you can choose side roads or wait for refueling.⟧"
-              },
-              "original": "**Quota-Aware Mode tells Claude when quota runs low.** When a 5-hour quota passes 80%, 90% or 95%, or a weekly quota passes 95%, Claude Code gets one line with what is left and when it resets. Before a big task, Claude tells you and lets you pick a smaller part or wait. It covers Claude Code, Codex and Antigravity, says each level once per conversation, and makes no extra model calls. macOS, off by default."
-            },
-            {
-              "title": {
-                "zh-TW": "Claude Code 開關收進專屬子選單，選單列更清爽",
-                "en": "Claude Code toggles move into a dedicated submenu for a cleaner menu bar"
-              },
-              "body": {
-                "zh-TW": "想在選單列中快速調整工具設定時，若所有開關都堆在同一層，容易讓人眼花撩亂。現在側邊面板、新手模式與額度感知模式這三項開關，集中在選單列選單中的「Claude Code」專屬子選單，就像面板主題一樣集中管理。現在歸類後不僅讓主選單畫面更為清爽，找尋相關功能也更直覺。⟦如同工具箱用專用隔層收納同系列工具，現在要查看這三項開關，就打開標著 Claude Code 的那一格，能一起看到它們。⟧",
-                "en": "When adjusting tool settings quickly from the menu bar, stacking all switches on the same level easily causes clutter. The side panel, beginner mode, and quota-aware mode toggles are now gathered into a dedicated \"Claude Code\" submenu within the menu bar menu, managed centrally just like popover themes. Organizing them makes the main menu cleaner and locating related features more intuitive. ⟦Think of a toolbox using dedicated compartments for related tools; checking these three toggles now means opening the section labeled Claude Code to see them all together.⟧"
-              },
-              "original": "**Claude Code switches have their own submenu.** Side pane, Beginner Mode and Quota-Aware Mode sit under a **Claude Code** submenu in the menu bar menu, like the panel themes."
-            },
-            {
-              "title": {
-                "zh-TW": "速率標籤改跟自己比，不再動輒誤報高負載",
-                "en": "Rate labels benchmark against your history to reduce false high load warnings"
-              },
-              "body": {
-                "zh-TW": "平時透過介面觀察自己的用量速率時，很容易發現指標動不動就亮起高負載。現在閒置、正常、活躍與高負載四種速率標籤，改用你過去 30 天的個人用量紀錄來劃分。用量排在最低 25% 的時段算閒置，只有衝進你最忙碌的前 5% 時才會標記為高負載。以往固定的統計門檻，會讓平常的 Opus 工作階段幾乎全程顯示高負載。在歷史紀錄累積滿 24 小時之前，則會暫時沿用舊門檻。⟦像運動手錶按你自己的體能設定心率區間，以前拿運動員的標準來套，稍微慢跑就整路狂響高負荷警報，現在改對齊你平時的心跳分佈，真正衝刺時才亮紅燈。⟧",
-                "en": "When monitoring your usage rate through the interface, indicators frequently trigger high load warnings unnecessarily. The four rate labels—idle, normal, active, and high load—are now classified using your personal usage history over the past 30 days. Periods in your lowest 25% of usage count as idle, while only spikes reaching your busiest top 5% are marked as high load. Previously, fixed statistical thresholds caused regular Opus sessions to display high load almost the entire time. Before 24 hours of history accumulate, the old thresholds are temporarily used. ⟦A sports watch customizes heart rate zones to your fitness; applying an athlete's standard once caused heavy load alarms during light jogs, but calibrating to your normal heart rate distribution lights up red only when truly sprinting.⟧"
-              },
-              "original": "**The rate label compares you with yourself.** Idle, Normal, Active and Heavy now come from your own last 30 days: hours below your 25th percentile are Idle, and only your top 5% are Heavy. Fixed limits labelled a normal Opus session Heavy almost all the time. Until there are 24 hours of history, the old limits apply."
             }
           ]
         }
