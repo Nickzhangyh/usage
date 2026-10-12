@@ -14,8 +14,11 @@ import logging
 import os
 import threading
 import time
+import tomllib
 import webbrowser
 from collections.abc import Callable, Mapping
+from importlib import metadata
+from pathlib import Path
 from typing import Any, cast
 
 import objc
@@ -23,8 +26,10 @@ from AppKit import (
     NSApp,
     NSApplication,
     NSApplicationActivationPolicyAccessory,
+    NSEvent,
     NSMakePoint,
     NSMakeRect,
+    NSMouseInRect,
     NSScreen,
     NSStatusBar,
     NSVariableStatusItemLength,
@@ -32,6 +37,8 @@ from AppKit import (
 from Foundation import NSObject, NSRunLoop, NSRunLoopCommonModes, NSTimer
 
 import panels
+from fsevents_watch import FileEventChanges, cleanup_fsevents, setup_fsevents
+from i18n import _t, packaged_resource_path
 from installer import login_item
 from installer.statusline_settings import (
     _claude_settings_path as _claude_settings_path,
@@ -58,7 +65,6 @@ from installer.statusline_settings import (
     _toggle_statusline_settings as _toggle_statusline_settings,
 )
 from loaders import agy_loader, codex_loader
-from loaders.claude_usage import ClaudeUsageClient, PollOutcome
 from loaders.history_loader import (
     UsageEntry,
 )
@@ -66,7 +72,6 @@ from loaders.history_loader import (
     flush_caches_on_terminate as flush_history_cache,
 )
 from menubar import actions as menubar_actions
-from menubar import manual_refresh, whats_new
 from menubar import menu as menubar_menu
 from menubar import notify as menubar_notify
 from menubar import refresh as menubar_refresh
@@ -79,19 +84,25 @@ from menubar.actions import (
 from menubar.chrome import (
     _make_alert,
 )
-from menubar.fsevents_watch import FileEventChanges, cleanup_fsevents, setup_fsevents
 from menubar.popover import PopoverViewController, _popover_size
-from menubar.popover import (
-    _invalidate_restored_content_height as _invalidate_restored_content_height,
-)
 from menubar.prefs import (
+    _auto_update_check_enabled,
+    _deepseek_api_key,
+    _deepseek_base_url,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
+    _hide_deepseek_enabled,
+    _hide_footer_enabled,
     _hide_grok_enabled,
+    _hide_manus_enabled,
+    _hide_projects_enabled,
+    _manus_token,
     _quota_card_order,
     _quota_notification_thresholds,
     _quota_notifications_enabled,
+    _save_deepseek_config,
+    _save_manus_config,
     _window_keeper_enabled,
 )
 from menubar.state import (
@@ -153,16 +164,16 @@ from panels.base import (
 from panels.dynamic_height import clamp_content_height
 from panels.panel_window import PanelWindow
 from panels.panel_window_state import save_panel_window_top_left
+from prefs import _load_preferences, _save_preferences
+from pricing import warm_up_pricing
 from quota.burn_rate import BurnRateTracker
-from quota.notifications import NotificationEvent, QuotaNotifier
 from quota.usage_rate import UsageRateTracker
 from updates import checker as update_checker
 from updates import gate as update_gate
-from usage_common.app_version import current_version as _current_version
-from usage_common.i18n import _t
-from usage_common.prefs import _load_preferences, _save_preferences
-from usage_common.pricing import warm_up_pricing
+from updates.release_notes import format_release_notes
+from usage_client import ClaudeUsageClient, PollOutcome
 from usage_common.usage_lang import detect_lang
+from usage_notifications import NotificationEvent, QuotaNotifier
 
 __all__ = [
     "CLAUDE_COLOR",
@@ -180,6 +191,7 @@ __all__ = [
     "_missing_row",
     "_quota_row",
     "format_human_time",
+    "_auto_update_check_enabled",
     "_hide_agy_enabled",
     "_hide_claude_enabled",
     "_hide_codex_enabled",
@@ -219,6 +231,34 @@ def _terse_mode_enabled() -> bool:
         return False
 
 
+def _current_version() -> str:
+    try:
+        return metadata.version("usage-cli")
+    except metadata.PackageNotFoundError as exc:
+        pyproject = packaged_resource_path(
+            "pyproject.toml", Path(__file__).with_name("pyproject.toml")
+        )
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        version = data.get("project", {}).get("version")
+        if isinstance(version, str):
+            return version
+        raise RuntimeError("project.version missing from pyproject.toml") from exc
+
+
+def _invalidate_restored_content_height(panel: Any, view: Any) -> None:
+    if not getattr(panel, "_content_height_reports_available", True):
+        return
+    if panel_window_state.load_panel_content_height(panel.id) is None:
+        return
+    if not hasattr(view, "evaluateJavaScript_completionHandler_"):
+        return
+    view.evaluateJavaScript_completionHandler_(
+        "typeof window.usageInvalidateContentHeight === \"function\" && "
+        "window.usageInvalidateContentHeight()",
+        None,
+    )
+
+
 _APP_DELEGATE: AppDelegate | None = None
 
 
@@ -251,6 +291,9 @@ class AppDelegate(NSObject):
     _switch_menu_action_taken = objc.ivar()
     _usage_client = objc.ivar()
     language = objc.ivar()
+    _mouse_timer = objc.ivar()
+    _mouse_entered_panel = objc.ivar()
+    _mouse_outside_count = objc.ivar()
 
     def initWithMock_interval_(self, mock: bool, interval: int) -> AppDelegate:
         self = objc.super(AppDelegate, self).init()
@@ -276,7 +319,6 @@ class AppDelegate(NSObject):
             "agy_session": BurnRateTracker(),
             "agy_weekly": BurnRateTracker(),
         }
-        self._auto_check_schedule = update_gate.AutoCheckSchedule()
         self._quota_notifier = QuotaNotifier(_quota_notification_thresholds())
         self._refresh_in_flight = False
         self._refresh_queued = False
@@ -354,7 +396,7 @@ class AppDelegate(NSObject):
 
     def timerFired_(self, timer: Any) -> None:
         self._refresh()
-        menubar_update.on_poll_tick(self)
+        self._clear_stale_update_cache()
 
     def _reschedule_poll_timer(self, interval: float) -> None:
         if self.timer is not None and self.timer_interval == interval:
@@ -377,10 +419,65 @@ class AppDelegate(NSObject):
 
     def _panel_window_did_show(self) -> None:
         self.refreshNow_(None)
+        self._start_mouse_leave_timer()
 
     def _panel_window_did_hide(self) -> None:
-        self.popover_controller.evictInactivePanelViews()
+        self._stop_mouse_leave_timer()
         self._reschedule_poll_timer(max(self.interval, SLOW_POLL_INTERVAL_S))
+
+    def _start_mouse_leave_timer(self) -> None:
+        self._stop_mouse_leave_timer()
+        self._mouse_entered_panel = False
+        self._mouse_outside_count = 0
+        scheduled_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_
+        self._mouse_timer = scheduled_timer(0.15, self, "checkMouseHover:", None, True)
+        NSRunLoop.currentRunLoop().addTimer_forMode_(self._mouse_timer, NSRunLoopCommonModes)
+
+    def _stop_mouse_leave_timer(self) -> None:
+        timer = getattr(self, "_mouse_timer", None)
+        self._mouse_timer = None
+        self._mouse_entered_panel = False
+        self._mouse_outside_count = 0
+        if timer is not None:
+            timer.invalidate()
+
+    def checkMouseHover_(self, timer: Any) -> None:
+        if not hasattr(self, "popover") or self.popover is None or not self._panel_window_is_visible():
+            self._stop_mouse_leave_timer()
+            return
+        if NSEvent.pressedMouseButtons() != 0:
+            self._mouse_outside_count = 0
+            return
+        loc = NSEvent.mouseLocation()
+        frame = self.popover.frame()
+        expanded_frame = NSMakeRect(
+            frame.origin.x - 4.0,
+            frame.origin.y - 4.0,
+            frame.size.width + 8.0,
+            frame.size.height + 8.0,
+        )
+        button_in_rect = False
+        if hasattr(self, "status_item") and self.status_item is not None:
+            btn = self.status_item.button()
+            if btn and btn.window():
+                btn_screen = btn.window().convertRectToScreen_(btn.bounds())
+                if NSMouseInRect(loc, btn_screen, False):
+                    button_in_rect = True
+        mouse_in_panel = NSMouseInRect(loc, expanded_frame, False)
+        if mouse_in_panel or button_in_rect:
+            self._mouse_entered_panel = True
+            self._mouse_outside_count = 0
+            return
+        if getattr(self, "_mouse_entered_panel", False):
+            self._mouse_outside_count = getattr(self, "_mouse_outside_count", 0) + 1
+            if self._mouse_outside_count >= 2:
+                self._stop_mouse_leave_timer()
+                self.popover.close()
+        else:
+            self._mouse_outside_count = getattr(self, "_mouse_outside_count", 0) + 1
+            if self._mouse_outside_count >= 5:
+                self._stop_mouse_leave_timer()
+                self.popover.close()
 
     def windowDidMove_(self, notification: Any) -> None:
         if notification.object() is self.popover and self._panel_window_is_visible():
@@ -392,7 +489,7 @@ class AppDelegate(NSObject):
             self._panel_window_did_hide()
 
     def refreshNow_(self, sender: Any) -> None:
-        manual_refresh.start_mac(self)
+        self._refresh(queue_if_busy=True)
 
     def installHook_(self, sender: Any) -> None:
         thread = threading.Thread(target=self._install_hook_in_background, daemon=True)
@@ -429,10 +526,12 @@ class AppDelegate(NSObject):
 
     def quitApp_(self, sender: Any) -> None:
         self._stop_poll_timer()
+        self._stop_mouse_leave_timer()
         NSApp.terminate_(sender)
 
     def applicationWillTerminate_(self, notification: Any) -> None:
         self._stop_poll_timer()
+        self._stop_mouse_leave_timer()
         cleanup_fsevents(self._fs_stream)
         self._fs_stream = None
         asyncio.run(self._usage_client.aclose())
@@ -507,6 +606,110 @@ class AppDelegate(NSObject):
     def toggleHideGrok_(self, sender: Any) -> None:
         self._toggle_hide_section(sender, "hide_grok_section", "hide_grok", _hide_grok_enabled)
 
+    def toggleHideDeepSeek_(self, sender: Any) -> None:
+        self._toggle_hide_section(
+            sender, "hide_deepseek_section", "hide_deepseek", _hide_deepseek_enabled
+        )
+
+    def configureDeepSeek_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        from AppKit import (
+            NSAlert,
+            NSApp,
+            NSMakeRect,
+            NSTextField,
+            NSView,
+        )
+
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(_t(self.language, "configure_deepseek_title"))
+        alert.setInformativeText_(_t(self.language, "configure_deepseek_info"))
+        alert.addButtonWithTitle_(_t(self.language, "save"))
+        alert.addButtonWithTitle_(_t(self.language, "cancel"))
+
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 95))
+
+        key_label = NSTextField.labelWithString_(_t(self.language, "deepseek_api_key_prompt"))
+        key_label.setFrame_(NSMakeRect(0, 72, 320, 18))
+        container.addSubview_(key_label)
+
+        key_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 48, 320, 22))
+        key_input.setStringValue_(_deepseek_api_key())
+        key_input.setPlaceholderString_("sk-...")
+        container.addSubview_(key_input)
+
+        url_label = NSTextField.labelWithString_(_t(self.language, "deepseek_base_url_prompt"))
+        url_label.setFrame_(NSMakeRect(0, 24, 320, 18))
+        container.addSubview_(url_label)
+
+        url_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 22))
+        url_input.setStringValue_(_deepseek_base_url())
+        url_input.setPlaceholderString_("https://api.deepseek.com")
+        container.addSubview_(url_input)
+
+        alert.setAccessoryView_(container)
+        alert.window().setInitialFirstResponder_(key_input)
+
+        NSApp.activateIgnoringOtherApps_(True)
+        response = alert.runModal()
+        if response == 1000:
+            new_key = str(key_input.stringValue()).strip()
+            new_url = str(url_input.stringValue()).strip()
+            _save_deepseek_config(new_key, new_url)
+            self._refresh()
+
+    def toggleHideManus_(self, sender: Any) -> None:
+        self._toggle_hide_section(
+            sender, "hide_manus_section", "hide_manus", _hide_manus_enabled
+        )
+
+    def configureManus_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        from AppKit import (
+            NSAlert,
+            NSApp,
+            NSMakeRect,
+            NSTextField,
+            NSView,
+        )
+
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(_t(self.language, "configure_manus_title"))
+        alert.setInformativeText_(_t(self.language, "configure_manus_info"))
+        alert.addButtonWithTitle_(_t(self.language, "save"))
+        alert.addButtonWithTitle_(_t(self.language, "cancel"))
+
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 50))
+
+        token_label = NSTextField.labelWithString_(_t(self.language, "manus_token_prompt"))
+        token_label.setFrame_(NSMakeRect(0, 26, 320, 18))
+        container.addSubview_(token_label)
+
+        token_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 2, 320, 22))
+        token_input.setStringValue_(_manus_token())
+        token_input.setPlaceholderString_(_t(self.language, "manus_token_placeholder"))
+        container.addSubview_(token_input)
+
+        alert.setAccessoryView_(container)
+        alert.window().setInitialFirstResponder_(token_input)
+
+        NSApp.activateIgnoringOtherApps_(True)
+        response = alert.runModal()
+        if response == 1000:
+            new_token = str(token_input.stringValue()).strip()
+            _save_manus_config(new_token)
+            self._refresh()
+
+    def toggleHideProjects_(self, sender: Any) -> None:
+        self._toggle_hide_section(
+            sender, "hide_projects_section", "hide_projects", _hide_projects_enabled
+        )
+
+    def toggleHideFooter_(self, sender: Any) -> None:
+        self._toggle_hide_section(
+            sender, "hide_footer_section", "hide_footer", _hide_footer_enabled
+        )
+
     def toggleQuotaNotifications_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
         prefs = _load_preferences()
@@ -552,12 +755,6 @@ class AppDelegate(NSObject):
         alert.runModal()
         self._refresh()
 
-    def toggleClaudePane_(self, sender: Any) -> None:
-        menubar_actions.toggle_claude_pane(self)
-
-    def _finishClaudePane_(self, result: dict[str, Any]) -> None:
-        menubar_actions.finish_claude_pane(self, result)
-
     def toggleTerseMode_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
         thread = threading.Thread(target=self._toggle_terse_mode_in_background, daemon=True)
@@ -583,11 +780,48 @@ class AppDelegate(NSObject):
     def _maybe_check_update_in_background(self) -> None:
         menubar_update.maybe_check_update_in_background(self)
 
-    def _check_update_in_background(self) -> bool:
-        return menubar_update.check_update_in_background(self)
+    def _check_update_in_background(
+        self,
+        *,
+        manual: bool,
+        ignore_cooldown: bool,
+        ignore_skipped: bool,
+    ) -> None:
+        menubar_update.check_update_in_background(
+            self,
+            manual=manual,
+            ignore_cooldown=ignore_cooldown,
+            ignore_skipped=ignore_skipped,
+        )
 
     def _showUpdateAlert_(self, release: update_checker.ReleaseInfo) -> None:
-        menubar_update.show_update_alert(self, release, _make_alert())
+        alert = _make_alert()
+        alert.setMessageText_(_t(self.language, "update_alert_title", version=release.version))
+        alert.setInformativeText_(format_release_notes(release.body, UPDATE_ALERT_BODY_LIMIT))
+        alert.addButtonWithTitle_(_t(self.language, "update_btn_download"))
+        alert.addButtonWithTitle_(_t(self.language, "update_btn_later"))
+        alert.addButtonWithTitle_(_t(self.language, "update_btn_skip"))
+        result = int(alert.runModal())
+        action, pref_updates = update_gate.resolve_alert_choice(result, release.version)
+        if action == "open":
+            webbrowser.open(release.html_url)
+            return
+
+        prefs = _load_preferences()
+        prefs.update(pref_updates)
+        if action == "dismiss":
+            prefs["update_dismissed_at"] = time.time()
+        _save_preferences(prefs)
+
+    def _showNoUpdateAvailable_(self, result: Any) -> None:
+        alert = _make_alert()
+        alert.setMessageText_(_t(self.language, "update_no_new_version"))
+        alert.runModal()
+
+    def _showUpdateCheckFailed_(self, result: Any) -> None:
+        alert = _make_alert()
+        alert.setMessageText_(_t(self.language, "update_check_failed"))
+        alert.runModal()
 
     def _set_active_panel_id(self, panel_id: str) -> None:
         panel = panels.get_panel(panel_id)
@@ -608,7 +842,8 @@ class AppDelegate(NSObject):
             button_rect = button.convertRect_toView_(button.bounds(), None)
             screen_rect = button_window.convertRectToScreen_(button_rect)
             origin = (
-                float(screen_rect.origin.x) + (float(screen_rect.size.width) - size[0]) / 2.0,
+                float(screen_rect.origin.x)
+                + (float(screen_rect.size.width) - size[0]) / 2.0,
                 float(screen_rect.origin.y) - size[1],
             )
         visible_frames = [
@@ -620,7 +855,9 @@ class AppDelegate(NSObject):
             )
             for screen in NSScreen.screens()
         ]
-        origin = panel_window_state.clamp_origin_to_visible_frames(origin, size, visible_frames)
+        origin = panel_window_state.clamp_origin_to_visible_frames(
+            origin, size, visible_frames
+        )
         self.popover.setFrameOrigin_(NSMakePoint(*origin))
         self._panel_window_will_show()
         self.popover.makeKeyAndOrderFront_(None)
@@ -632,7 +869,9 @@ class AppDelegate(NSObject):
             return
         controller = self.popover_controller
         view = (
-            controller.currentContentView() if hasattr(controller, "currentContentView") else None
+            controller.currentContentView()
+            if hasattr(controller, "currentContentView")
+            else None
         )
         _invalidate_restored_content_height(
             self.active_panel,
@@ -683,6 +922,7 @@ class AppDelegate(NSObject):
         )
         button = self.status_item.button()
         self._show_popover_from_button(button)
+        self._refresh(queue_if_busy=True)
 
     def _refresh(self, queue_if_busy: bool = False) -> None:
         if self._refresh_in_flight:
@@ -758,7 +998,7 @@ class AppDelegate(NSObject):
             codex_model = result.get("codex_model", "unknown")
             self.codex_5h_pct = codex_5h_pct
             self.codex_model = codex_model
-            self.latest_state = manual_refresh.finish_mac(self, state)
+            self.latest_state = state
             self._process_quota_notifications(state)
             if self._panel_window_is_visible():
                 self.popover_controller.setState_(self.latest_state)
@@ -767,7 +1007,8 @@ class AppDelegate(NSObject):
             menubar_title._set_button_title(self, state)
         finally:
             should_refresh_again = bool(self._refresh_queued)
-            self._refresh_queued = self._refresh_in_flight = False
+            self._refresh_queued = False
+            self._refresh_in_flight = False
         if should_refresh_again:
             self._refresh()
         if started_at:
@@ -777,7 +1018,7 @@ class AppDelegate(NSObject):
             )
 
     def _clearRefreshInFlight_(self, _sender: Any) -> None:
-        manual_refresh.fail_mac(self)
+        self._refresh_in_flight = False
 
     def _load_codex_refresh_result(self) -> dict[str, Any]:
         history_scan = None if self.mock else self._history_source_scan()
@@ -793,7 +1034,9 @@ class AppDelegate(NSObject):
                 language=self.language,
                 burn_rate_trackers=self.burn_rate_trackers,
                 jsonl_candidates=(
-                    None if history_scan is None else history_scan.codex_rate_limit_candidates
+                    None
+                    if history_scan is None
+                    else history_scan.codex_rate_limit_candidates
                 ),
             )
         except Exception:
@@ -840,7 +1083,16 @@ class AppDelegate(NSObject):
     def _request_notification_authorization(self) -> None:
         if self.mock or not _quota_notifications_enabled():
             return
-        menubar_notify.request_notification_authorization()
+        try:
+            center, constants = menubar_notify.user_notification_center()
+            options = constants["badge"] | constants["sound"] | constants["alert"]
+            center.requestAuthorizationWithOptions_completionHandler_(
+                options,
+                lambda granted, error: None,
+            )
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("notification authorization failed", exc_info=True)
 
     def _process_quota_notifications(self, state: PopoverState) -> None:
         try:
@@ -892,7 +1144,7 @@ class AppDelegate(NSObject):
                     reset=row.reset_text,
                 )
             )
-            content.setSound_(menubar_notify.notification_sound(sound_cls, event.kind))
+            content.setSound_(sound_cls.defaultSound())
             request = request_cls.requestWithIdentifier_content_trigger_(
                 f"usage.{event.channel}.{event.kind}.{int(time.time() * 1000)}",
                 content,
@@ -992,18 +1244,11 @@ class AppDelegate(NSObject):
     ) -> list[tuple[str, int, float | None]]:
         return menubar_state.app_project_rows(self, hours_back=hours_back, entries=entries)
 
-
-def run_app(
-    mock: bool = False,
-    interval: int = 60,
-    preferences_snapshot: Mapping[str, Any] | None = None,
-) -> None:
+def run_app(mock: bool = False, interval: int = 60) -> None:
     global _APP_DELEGATE
-    snapshot = _load_preferences() if preferences_snapshot is None else preferences_snapshot
     app = NSApplication.sharedApplication()
     _APP_DELEGATE = AppDelegate.alloc().initWithMock_interval_(mock, interval)
     app.setDelegate_(_APP_DELEGATE)
-    whats_new.start(_current_version(), snapshot, _APP_DELEGATE.language)
     app.run()
 
 

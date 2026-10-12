@@ -21,6 +21,10 @@ _AGY_MENUBAR_ICON: Any = None
 _AGY_MENUBAR_ICON_LOADED = False
 _GROK_MENUBAR_ICON: Any = None
 _GROK_MENUBAR_ICON_LOADED = False
+_DEEPSEEK_MENUBAR_ICON: Any = None
+_DEEPSEEK_MENUBAR_ICON_LOADED = False
+_MANUS_MENUBAR_ICON: Any = None
+_MANUS_MENUBAR_ICON_LOADED = False
 
 
 class _NoopAlert:
@@ -57,13 +61,12 @@ def _alert_icon() -> Any:
     return _ALERT_ICON
 
 
-def _load_menubar_brand_icon(filename: str) -> Any:
-    # Monochrome brand marks drawn black-on-clear: as template images the status
-    # bar button tints them for the light and dark menu bar, so they never wash
-    # out against a wallpaper the way the color art does.
+def _load_menubar_brand_icon(filename: str, *, is_template: bool = False) -> Any:
+    # Full color brand icons: setTemplate_(False) preserves their authentic brand colors
+    # and keeps them bright and visible in both light and dark menu bars.
     image = NSImage.alloc().initWithContentsOfFile_(resolve_resource(filename))
     if image is not None:
-        image.setTemplate_(True)
+        image.setTemplate_(is_template)
         image.setSize_(NSMakeSize(16, 16))
     return image
 
@@ -73,7 +76,7 @@ def _claude_menubar_icon() -> Any:
     if not _CLAUDE_MENUBAR_ICON_LOADED:
         _CLAUDE_MENUBAR_ICON_LOADED = True
         try:
-            _CLAUDE_MENUBAR_ICON = _load_menubar_brand_icon("claude_mono_menubar.png")
+            _CLAUDE_MENUBAR_ICON = _load_menubar_brand_icon("claude_color_menubar.png", is_template=False)
         except Exception:
             _CLAUDE_MENUBAR_ICON = None
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -86,7 +89,7 @@ def _codex_menubar_icon() -> Any:
     if not _CODEX_MENUBAR_ICON_LOADED:
         _CODEX_MENUBAR_ICON_LOADED = True
         try:
-            _CODEX_MENUBAR_ICON = _load_menubar_brand_icon("codex_mono_menubar.png")
+            _CODEX_MENUBAR_ICON = _load_menubar_brand_icon("codex_color_menubar.png", is_template=False)
         except Exception:
             _CODEX_MENUBAR_ICON = None
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -99,7 +102,7 @@ def _agy_menubar_icon() -> Any:
     if not _AGY_MENUBAR_ICON_LOADED:
         _AGY_MENUBAR_ICON_LOADED = True
         try:
-            _AGY_MENUBAR_ICON = _load_menubar_brand_icon("agy_mono_menubar.png")
+            _AGY_MENUBAR_ICON = _load_menubar_brand_icon("agy_color_menubar.png", is_template=False)
         except Exception:
             _AGY_MENUBAR_ICON = None
             if os.environ.get("USAGE_DEBUG") == "1":
@@ -118,6 +121,32 @@ def _grok_menubar_icon() -> Any:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("load Grok menubar icon failed", exc_info=True)
     return _GROK_MENUBAR_ICON
+
+
+def _deepseek_menubar_icon() -> Any:
+    global _DEEPSEEK_MENUBAR_ICON, _DEEPSEEK_MENUBAR_ICON_LOADED
+    if not _DEEPSEEK_MENUBAR_ICON_LOADED:
+        _DEEPSEEK_MENUBAR_ICON_LOADED = True
+        try:
+            _DEEPSEEK_MENUBAR_ICON = _load_menubar_brand_icon("deepseek_color_menubar.png", is_template=False)
+        except Exception:
+            _DEEPSEEK_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load DeepSeek menubar icon failed", exc_info=True)
+    return _DEEPSEEK_MENUBAR_ICON
+
+
+def _manus_menubar_icon() -> Any:
+    global _MANUS_MENUBAR_ICON, _MANUS_MENUBAR_ICON_LOADED
+    if not _MANUS_MENUBAR_ICON_LOADED:
+        _MANUS_MENUBAR_ICON_LOADED = True
+        try:
+            _MANUS_MENUBAR_ICON = _load_menubar_brand_icon("manus_color_menubar.png", is_template=False)
+        except Exception:
+            _MANUS_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load Manus menubar icon failed", exc_info=True)
+    return _MANUS_MENUBAR_ICON
 
 
 def _menubar_icon_attachment_string(image: Any) -> Any:

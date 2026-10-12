@@ -19,22 +19,31 @@ from typing import Any, Protocol
 import quota.agy_window_keeper as agy_window_keeper
 import quota.codex_window_keeper as codex_window_keeper
 import quota.window_keeper as window_keeper
-from loaders.claude_usage import PollOutcome, PollState
 from loaders.history_loader import UsageEntry
+from adapters import deepseek as adapter_deepseek
+from adapters import manus as adapter_manus
+from loaders import deepseek_loader, manus_loader
 from menubar import agy as menubar_agy
 from menubar import grok as menubar_grok
 from menubar import state as menubar_state
 from menubar.prefs import (
+    _deepseek_api_key,
+    _deepseek_base_url,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
+    _hide_deepseek_enabled,
+    _hide_footer_enabled,
     _hide_grok_enabled,
+    _hide_manus_enabled,
+    _hide_projects_enabled,
+    _manus_token,
     _quota_card_order,
 )
-from quota import quota_snapshot
 from quota.burn_rate import BurnRateTracker
 from quota.usage_rate import UsageRateTracker
-from usage_common.service_status import CLAUDE_STATUS, CODEX_STATUS, get_service_status
+from service_status import CLAUDE_STATUS, CODEX_STATUS, get_service_status
+from usage_client import PollOutcome, PollState
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +144,8 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
     hide_codex = fallback_state.hide_codex
     hide_agy = agy_result.hide_agy or _hide_agy_enabled()
     hide_grok = grok_result.hide_grok or _hide_grok_enabled()
+    hide_projects = fallback_state.hide_projects
+    hide_footer = fallback_state.hide_footer
     card_order = _quota_card_order()
     try:
         started_at = time.monotonic() if sources.debug_timing else 0.0
@@ -160,15 +171,40 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             ) = menubar_state.project_rows_for_windows(all_entries)
         sources.measure("project_rows_windows", started_at)
         today_text = menubar_state._today_title(app.mock, app.language, entries=all_entries)
-        yesterday_text = menubar_state._yesterday_title(app.mock, app.language, entries=all_entries)
+        yesterday_text = menubar_state._yesterday_title(
+            app.mock, app.language, entries=all_entries
+        )
         statusline = menubar_state._statusline_payload(app.language)
         hide_claude = _hide_claude_enabled()
         hide_codex = _hide_codex_enabled()
         hide_agy = agy_result.hide_agy or _hide_agy_enabled()
         hide_grok = grok_result.hide_grok or _hide_grok_enabled()
+        hide_projects = _hide_projects_enabled()
+        hide_footer = _hide_footer_enabled()
     except Exception:
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("local usage refresh failed", exc_info=True)
+    hide_deepseek = _hide_deepseek_enabled()
+    deepseek_payload = None
+    ds_key = _deepseek_api_key()
+    if ds_key:
+        ds_base = _deepseek_base_url()
+        try:
+            ds_result = deepseek_loader.load_quota(ds_key, ds_base)
+            deepseek_payload = adapter_deepseek.format_deepseek_card(ds_result, app.language)
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("deepseek quota load failed", exc_info=True)
+    hide_manus = _hide_manus_enabled()
+    manus_payload = None
+    try:
+        m_token = _manus_token()
+        m_result = manus_loader.load_quota(m_token)
+        if m_result is not None:
+            manus_payload = adapter_manus.format_manus_card(m_result, app.language)
+    except Exception:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.warning("manus quota load failed", exc_info=True)
     try:
         started_at = time.monotonic() if sources.debug_timing else 0.0
         outcome = asyncio.run(app._fetch())
@@ -210,10 +246,16 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             hide_codex=hide_codex,
             hide_agy=hide_agy,
             hide_grok=hide_grok,
+            hide_deepseek=hide_deepseek,
+            hide_manus=hide_manus,
+            hide_projects=hide_projects,
+            hide_footer=hide_footer,
             codex_stale=codex_stale,
             codex_credits=codex_credits,
             agy_stale=agy_projection.stale,
             grok_stale=grok_projection.stale,
+            deepseek=deepseek_payload,
+            manus=manus_payload,
             card_order=card_order,
             history_error=menubar_state.history_load_error_state(
                 app._history_load_error_key, app.language
@@ -229,13 +271,6 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             )
         agy_window_keeper.maybe_ping(agy_result, app.mock)
         codex_window_keeper.maybe_ping(app.mock)
-        from menubar.notify import send_simple_notification
-        from menubar.prefs import _quota_notifications_enabled
-        from quota.keeper_outcome import notify_failures
-
-        notify_failures(
-            app.language, _quota_notifications_enabled(), app.mock, send_simple_notification
-        )
     except Exception as exc:
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("refresh failed", exc_info=True)
@@ -252,6 +287,8 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
         state.agy_stale = agy_projection.stale
         state.grok_weekly = grok_projection.weekly
         state.grok_stale = grok_projection.stale
+        state.deepseek = deepseek_payload
+        state.manus = manus_payload
         state.history_error = menubar_state.history_load_error_state(
             app._history_load_error_key, app.language
         )
@@ -267,10 +304,10 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
         state.hide_codex = hide_codex
         state.hide_agy = hide_agy
         state.hide_grok = hide_grok
+        state.hide_deepseek = hide_deepseek
+        state.hide_manus = hide_manus
         state.card_order = card_order
 
-    if not app.mock:
-        quota_snapshot.write_snapshot()
     return {
         "state": state,
         "codex_5h_pct": codex_5h_pct,

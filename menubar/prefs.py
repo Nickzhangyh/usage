@@ -8,16 +8,20 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from usage_common.prefs import _load_preferences, _save_preferences
+from prefs import _load_preferences, _save_preferences
 
-DEFAULT_QUOTA_CARD_ORDER = ("claude", "codex", "agy", "grok")
+DEFAULT_QUOTA_CARD_ORDER = ("claude", "codex", "agy", "grok", "deepseek", "manus")
 DEFAULT_PANEL_FLAVOR = "mocha"
 PANEL_FLAVORS = ("latte", "frappe", "macchiato", "mocha")
-AGY_QUOTA_GROUPS = ("gemini", "claude_gpt")
 
 
 def _resolved_preferences(prefs: Mapping[str, object] | None = None) -> Mapping[str, object]:
     return _load_preferences() if prefs is None else prefs
+
+
+def _auto_update_check_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("auto_update_check") is not False
 
 
 def _hide_claude_enabled(prefs: Mapping[str, object] | None = None) -> bool:
@@ -40,6 +44,57 @@ def _hide_grok_enabled(prefs: Mapping[str, object] | None = None) -> bool:
     return data.get("hide_grok_section") is True
 
 
+def _hide_deepseek_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("hide_deepseek_section") is True
+
+
+def _deepseek_api_key(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("deepseek_api_key")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _deepseek_base_url(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("deepseek_base_url")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _save_deepseek_config(api_key: str, base_url: str) -> None:
+    prefs = _load_preferences()
+    prefs["deepseek_api_key"] = api_key.strip()
+    prefs["deepseek_base_url"] = base_url.strip()
+    _save_preferences(prefs)
+
+
+def _hide_manus_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("hide_manus_section") is True
+
+
+def _manus_token(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("manus_token")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _save_manus_config(token: str) -> None:
+    prefs = _load_preferences()
+    prefs["manus_token"] = token.strip()
+    _save_preferences(prefs)
+
+
+def _hide_projects_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("hide_projects_section") is True
+
+
+def _hide_footer_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("hide_footer_section") is True
+
+
 def _panel_flavor(prefs: Mapping[str, object] | None = None) -> str:
     data = _resolved_preferences(prefs)
     flavor = _valid_panel_flavor(data.get("panel_flavor"))
@@ -60,26 +115,6 @@ def _valid_panel_flavor(value: object) -> str | None:
     if not isinstance(value, str) or value not in PANEL_FLAVORS:
         return None
     return value
-
-
-def _agy_quota_group(prefs: Mapping[str, object] | None = None) -> str:
-    data = _resolved_preferences(prefs)
-    group = _valid_agy_quota_group(data.get("agy_quota_group"))
-    return "gemini" if group is None else group
-
-
-def _save_agy_quota_group(group: object) -> bool:
-    valid_group = _valid_agy_quota_group(group)
-    if valid_group is None:
-        return False
-    prefs = _load_preferences()
-    prefs["agy_quota_group"] = valid_group
-    _save_preferences(prefs)
-    return True
-
-
-def _valid_agy_quota_group(value: object) -> str | None:
-    return value if isinstance(value, str) and value in AGY_QUOTA_GROUPS else None
 
 
 def _quota_card_order(prefs: Mapping[str, object] | None = None) -> tuple[str, ...]:

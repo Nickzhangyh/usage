@@ -32,25 +32,64 @@
         return row;
       },
       switchButtonStrategy(state) {
-        // The switch button lives in the Claude card header; when that card is
-        // hidden, move it to the next visible home so the menu stays reachable.
-        const button = document.querySelector('[data-action="switch"]');
-        if (!button) return;
-        let host = document.querySelector('[data-card="claude"] .brand');
-        let className = "switch";
-        if (state.hideClaude && !state.hideCodex) {
-          host = document.querySelector('[data-card="codex"] .brand');
-        } else if (state.hideClaude && state.hideCodex && !state.hideAgy) {
-          host = document.querySelector('[data-card="agy"] .brand');
-        } else if (state.hideClaude && state.hideCodex && state.hideAgy && !state.hideGrok) {
-          host = document.querySelector('[data-card="grok"] .brand');
+        const buttons = document.querySelectorAll('[data-action="switch"]');
+        for (let i = 1; i < buttons.length; i++) {
+          buttons[i].remove();
         }
-        if (!host || (state.hideClaude && state.hideCodex && state.hideAgy && state.hideGrok)) {
-          host = document.querySelector(".footer .actions");
+        const button = buttons[0];
+        if (!button) return;
+
+        function findCardHeader(cardId) {
+          const card = document.querySelector(`[data-card="${cardId}"]`);
+          return card ? card.querySelector(".brand, .header, header") : null;
+        }
+        function isHidden(cardId) {
+          if (!state) return false;
+          if (cardId === "claude") return !!state.hideClaude;
+          if (cardId === "codex") return !!state.hideCodex;
+          if (cardId === "agy") return !!state.hideAgy;
+          if (cardId === "grok") return !!state.hideGrok;
+          if (cardId === "deepseek") return !!state.hideDeepseek || (!state.deepseek || !state.deepseek.configured);
+          if (cardId === "projects") return !!state.hideProjects;
+          return false;
+        }
+
+        const order = Array.isArray(state?.cardOrder) && state.cardOrder.length
+          ? state.cardOrder
+          : ["claude", "codex", "agy", "grok", "deepseek"];
+
+        let host = null;
+        let className = "switch";
+
+        for (const id of order) {
+          if (!isHidden(id)) {
+            host = findCardHeader(id);
+            if (host) break;
+          }
+        }
+        if (!host) {
+          for (const id of ["claude", "codex", "agy", "grok", "deepseek"]) {
+            if (!isHidden(id)) {
+              host = findCardHeader(id);
+              if (host) break;
+            }
+          }
+        }
+        if (!host && !isHidden("projects")) {
+          host = findCardHeader("projects");
+        }
+        if (!host && !state?.hideFooter) {
+          host = document.querySelector(".footer .actions, .footer");
           className = "action";
         }
+        if (!host) {
+          host = document.querySelector("main.wrap") || document.body;
+          className = "switch floating-switch";
+        }
+
         if (!host) return;
         button.className = className;
+        button.style.display = "";
         if (button.parentElement !== host) host.appendChild(button);
       },
       pointerdownExcludeSelector: "button, a, .codex-stale-info",
@@ -87,7 +126,59 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      [data-card="agy"] .usage-switch-host > h1,
+      [data-card="agy"] .usage-switch-host > .header-copy {
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+        overflow: visible !important;
+      }
+      [data-card="agy"] .usage-switch-host > [data-agy-stale] {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+      [data-card="agy"] .usage-switch-host [data-agy-stale-age] {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      [data-card="grok"] .usage-switch-host > h1,
+      [data-card="grok"] .usage-switch-host > .header-copy {
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+        overflow: visible !important;
+      }
+      [data-card="grok"] .usage-switch-host > [data-grok-stale] {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+      [data-card="grok"] .usage-switch-host [data-grok-stale-age] {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .usage-switch-host [data-action="switch"] {
+        margin-left: auto !important;
+        flex: 0 0 auto !important;
+      }
+      button.floating-switch[data-action="switch"] {
+        position: fixed !important;
+        top: 8px !important;
+        right: 8px !important;
+        z-index: 99999 !important;
+      }
       [data-card="grok"] { cursor: grab; }
+      [data-card="deepseek"] .usage-switch-host > h1,
+      [data-card="deepseek"] .usage-switch-host > .header-copy {
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+        overflow: visible !important;
+      }
+      [data-card="deepseek"] { cursor: grab; }
+      .hide-deepseek [data-card="deepseek"] { display: none !important; }
     `;
     document.head.appendChild(switchHostStyle);
     let currentLanguage = "en";
@@ -188,7 +279,13 @@
       const fill = el.querySelector(".fill");
       if (!title || !percent || !reset || !fill) return;
       title.textContent = data.title != null ? data.title : labels()[key];
-      percent.textContent = data.percentText || "--";
+      if (available && typeof data.percent === "number") {
+        const remaining = Math.max(0, 100 - data.percent);
+        const remFormatted = Number.isInteger(remaining) ? remaining : remaining.toFixed(1);
+        percent.textContent = `剩余 ${remFormatted}%`;
+      } else {
+        percent.textContent = data.percentText || "--";
+      }
       reset.textContent = data.resetText || t("reset_placeholder");
       reset.dataset.warning = data.warning === true ? "true" : "false";
       percent.style.color = available ? color : "";
@@ -249,21 +346,13 @@
 
     function renderAgy(agy) {
       applyCard("agy", agy);
-      const groupButton = document.querySelector('[data-action="set_agy_quota_group"]');
-      if (groupButton) {
-        const isClaude = Boolean(agy && /claude/i.test(agy.groupName || ""));
-        groupButton.textContent = t(isClaude ? "agy_group_claude_gpt" : "agy_group_gemini");
-        groupButton.dataset.group = isClaude ? "gemini" : "claude_gpt";
-        groupButton.title = t("agy_group_switch_tooltip");
-        groupButton.setAttribute("aria-label", t("agy_group_switch_tooltip"));
-      }
       const staleEl = document.querySelector("[data-agy-stale]");
       const ageEl = document.querySelector("[data-agy-stale-age]");
       const tooltipEl = document.querySelector("[data-agy-stale-tooltip]");
       if (!staleEl || !ageEl || !tooltipEl) return;
       if (agy && agy.stale && agy.stale.ageText) {
         ageEl.textContent = agy.stale.ageText;
-        tooltipEl.textContent = agy.stale.tooltip || t("agy_stale_tooltip");
+        tooltipEl.textContent = t("agy_stale_tooltip");
         staleEl.hidden = false;
         return;
       }
@@ -287,6 +376,183 @@
       ageEl.textContent = "";
       tooltipEl.textContent = "";
       staleEl.hidden = true;
+    }
+
+    function ensureDeepSeekCard() {
+      let card = document.querySelector('[data-card="deepseek"]');
+      if (card) return card;
+      const wrap = document.querySelector("main.wrap");
+      if (!wrap) return null;
+      card = document.createElement("section");
+      card.className = "card";
+      card.dataset.card = "deepseek";
+      card.style.setProperty("--accent", "#4D6BFE");
+      card.innerHTML = `
+        <header class="header brand" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div class="brand-icon deepseek-icon" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(77,107,254,0.15);color:#4D6BFE;flex:none;">
+            <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+              <path d="M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 0 1-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 0 0-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 0 1-.465.137 9.597 9.597 0 0 0-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 0 0 1.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 0 1 1.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 0 1 .415-.287.302.302 0 0 1 .2.288.302.302 0 0 1-.31.307.303.303 0 0 1-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 0 1-.598-.052z"/>
+            </svg>
+          </div>
+          <div class="header-copy" style="min-width:0;flex:1;">
+            <h1 data-i18n="deepseek_name" style="margin:0;font-size:16px;font-weight:600;">DeepSeek</h1>
+          </div>
+          <div class="deepseek-badge" data-deepseek-balance style="font-weight:700;font-size:14px;color:#4D6BFE;margin-left:auto;white-space:nowrap;">--</div>
+        </header>
+        <div class="row" data-row="deepseek-details" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px;opacity:0.85;">
+          <span data-deepseek-topped-up></span>
+          <span data-deepseek-granted></span>
+        </div>
+      `;
+      const projects = document.querySelector('[data-card="projects"]');
+      if (projects) {
+        wrap.insertBefore(card, projects);
+      } else {
+        wrap.appendChild(card);
+      }
+      return card;
+    }
+
+    function renderDeepSeek(deepseek) {
+      if (!deepseek || !deepseek.configured) {
+        const card = document.querySelector('[data-card="deepseek"]');
+        if (card) card.style.display = "none";
+        return;
+      }
+      const card = ensureDeepSeekCard();
+      if (!card) return;
+      card.style.display = "";
+
+      const balEl = card.querySelector('[data-deepseek-balance]');
+      if (balEl) {
+        balEl.textContent = deepseek.formattedBalance || "--";
+      }
+
+      const toppedEl = card.querySelector('[data-deepseek-topped-up]');
+      if (toppedEl) {
+        if (deepseek.toppedUp) {
+          toppedEl.textContent = `${t("deepseek_topped_up")}: ${deepseek.toppedUp}`;
+          toppedEl.style.display = "";
+        } else {
+          toppedEl.style.display = "none";
+        }
+      }
+
+      const grantedEl = card.querySelector('[data-deepseek-granted]');
+      if (grantedEl) {
+        if (deepseek.granted) {
+          grantedEl.textContent = `${t("deepseek_granted")}: ${deepseek.granted}`;
+          grantedEl.style.display = "";
+        } else {
+          grantedEl.style.display = "none";
+        }
+      }
+
+      const detailsRow = card.querySelector('[data-row="deepseek-details"]');
+      if (detailsRow) {
+        if (!deepseek.toppedUp && !deepseek.granted) {
+          if (deepseek.errorMessage) {
+            detailsRow.innerHTML = `<span style="color:#f87171;font-size:11px;">${deepseek.errorMessage}</span>`;
+            detailsRow.style.display = "";
+          } else {
+            detailsRow.style.display = "none";
+          }
+        } else {
+          detailsRow.style.display = "flex";
+        }
+      }
+    }
+
+    function ensureManusCard() {
+      let card = document.querySelector('[data-card="manus"]');
+      if (card) return card;
+      const wrap = document.querySelector("main.wrap");
+      if (!wrap) return null;
+      card = document.createElement("section");
+      card.className = "card";
+      card.dataset.card = "manus";
+      card.style.setProperty("--accent", "#E87A40");
+      card.innerHTML = `
+        <header class="header brand" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div class="brand-icon manus-icon" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(232,122,64,0.15);color:#E87A40;flex:none;overflow:hidden;">
+            <img src="../manus_color_menubar.png" width="22" height="22" style="border-radius:5px;object-fit:cover;" alt="Manus" />
+          </div>
+          <div class="header-copy" style="min-width:0;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <h1 data-i18n="manus_name" style="margin:0;font-size:16px;font-weight:600;">Manus</h1>
+              <span class="manus-plan-badge" data-manus-plan style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(232,122,64,0.18);color:#E87A40;">PRO</span>
+            </div>
+          </div>
+          <div class="manus-badge" data-manus-credits style="font-weight:700;font-size:15px;color:#E87A40;margin-left:auto;white-space:nowrap;">--</div>
+        </header>
+        <div class="row" data-row="manus-details" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px;opacity:0.85;">
+          <span data-manus-periodic></span>
+          <span data-manus-free></span>
+        </div>
+      `;
+      const projects = document.querySelector('[data-card="projects"]');
+      if (projects) {
+        wrap.insertBefore(card, projects);
+      } else {
+        wrap.appendChild(card);
+      }
+      return card;
+    }
+
+    function renderManus(manus) {
+      if (!manus || (!manus.configured && !manus.available)) {
+        const card = document.querySelector('[data-card="manus"]');
+        if (card) card.style.display = "none";
+        return;
+      }
+      const card = ensureManusCard();
+      if (!card) return;
+      card.style.display = "";
+
+      const creditsEl = card.querySelector('[data-manus-credits]');
+      if (creditsEl) {
+        creditsEl.textContent = (manus.formattedCredits || "--") + " " + (t("credits_unit") || "点");
+      }
+
+      const planEl = card.querySelector('[data-manus-plan]');
+      if (planEl) {
+        planEl.textContent = (manus.membershipVersion ? manus.membershipVersion.toUpperCase() : "PRO");
+      }
+
+      const periodicEl = card.querySelector('[data-manus-periodic]');
+      if (periodicEl) {
+        if (manus.proMonthlyCredits) {
+          periodicEl.textContent = `${t("manus_plan_credits")}: ${manus.periodicCredits || 0} / ${manus.proMonthlyCredits}`;
+          periodicEl.style.display = "";
+        } else if (manus.periodicCredits) {
+          periodicEl.textContent = `${t("manus_plan_credits")}: ${manus.periodicCredits}`;
+          periodicEl.style.display = "";
+        } else {
+          periodicEl.style.display = "none";
+        }
+      }
+
+      const freeEl = card.querySelector('[data-manus-free]');
+      if (freeEl) {
+        if (manus.freeCredits) {
+          freeEl.textContent = `${t("manus_free_credits")}: ${manus.freeCredits}`;
+          freeEl.style.display = "";
+        } else {
+          freeEl.style.display = "none";
+        }
+      }
+
+      const detailsRow = card.querySelector('[data-row="manus-details"]');
+      if (detailsRow) {
+        if (manus.errorMessage) {
+          detailsRow.innerHTML = `<span style="color:#f87171;font-size:11px;">${manus.errorMessage}</span>`;
+          detailsRow.style.display = "";
+        } else if (!manus.periodicCredits && !manus.freeCredits) {
+          detailsRow.style.display = "none";
+        } else {
+          detailsRow.style.display = "flex";
+        }
+      }
     }
 
     function renderHistoryLoadError(err) {
@@ -356,12 +622,12 @@
       window.PanelHooks.switchButtonStrategy(state);
       const button = document.querySelector('[data-action="switch"]');
       const host = button && button.parentElement;
-      if (host && host.closest('[data-card="codex"]')) {
+      if (host) {
         host.classList.add("usage-switch-host");
       }
     }
 
-    const QUOTA_CARD_IDS = ["claude", "codex", "agy", "grok"];
+    const QUOTA_CARD_IDS = ["claude", "codex", "agy", "grok", "deepseek", "manus"];
 
     function applyCardOrder(order) {
       if (cardDrag && cardDrag.dragging) return;
@@ -379,6 +645,27 @@
       });
     }
 
+    const hideSectionsStyle = document.createElement("style");
+    hideSectionsStyle.textContent = `
+      html.hide-deepseek [data-card="deepseek"],
+      .hide-deepseek [data-card="deepseek"] {
+        display: none !important;
+      }
+      html.hide-manus [data-card="manus"],
+      .hide-manus [data-card="manus"] {
+        display: none !important;
+      }
+      html.hide-projects [data-card="projects"],
+      .hide-projects [data-card="projects"] {
+        display: none !important;
+      }
+      html.hide-footer .footer,
+      .hide-footer .footer {
+        display: none !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(hideSectionsStyle);
+
     window.usageApplyState = function usageApplyState(state) {
       if (typeof state.system_accent_color === "string" && state.system_accent_color) {
         root.style.setProperty("--usage-system-accent", state.system_accent_color);
@@ -389,6 +676,10 @@
       document.documentElement.classList.toggle('hide-claude', !!state.hideClaude);
       document.documentElement.classList.toggle('hide-agy', !!state.hideAgy);
       document.documentElement.classList.toggle('hide-grok', !!state.hideGrok);
+      document.documentElement.classList.toggle('hide-deepseek', !!state.hideDeepseek);
+      document.documentElement.classList.toggle('hide-manus', !!state.hideManus);
+      document.documentElement.classList.toggle('hide-projects', !!state.hideProjects);
+      document.documentElement.classList.toggle('hide-footer', !!state.hideFooter);
       applyCardOrder(state.cardOrder);
       relocateSwitchButton(state);
       currentLanguage = I18N[state.language] ? state.language : currentLanguage;
@@ -399,6 +690,8 @@
       renderCodexCredits(state.codex && state.codex.credits);
       renderAgy(state.agy);
       renderGrok(state.grok);
+      renderDeepSeek(state.deepseek);
+      renderManus(state.manus);
       renderHistoryLoadError(state.historyError);
       latestState = state;
       renderProjects(
@@ -454,16 +747,32 @@
       }
       const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.usage;
       if (bridge && typeof bridge.postMessage === "function") {
-        bridge.postMessage(button.dataset.action === "set_agy_quota_group"
-          ? JSON.stringify({ action: button.dataset.action, group: button.dataset.group })
-          : button.dataset.action);
+        bridge.postMessage(button.dataset.action);
       }
+    });
+
+    let mouseLeaveTimer = null;
+    document.addEventListener("mouseenter", () => {
+      if (mouseLeaveTimer) {
+        clearTimeout(mouseLeaveTimer);
+        mouseLeaveTimer = null;
+      }
+    });
+    document.addEventListener("mouseleave", () => {
+      if (cardDrag && cardDrag.dragging) return;
+      if (mouseLeaveTimer) clearTimeout(mouseLeaveTimer);
+      mouseLeaveTimer = setTimeout(() => {
+        const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.usage;
+        if (bridge && typeof bridge.postMessage === "function") {
+          bridge.postMessage("close");
+        }
+      }, 250);
     });
 
     let cardDrag = null;
 
     document.addEventListener("pointerdown", (event) => {
-      const card = event.target.closest('[data-card="claude"], [data-card="codex"], [data-card="agy"], [data-card="grok"]');
+      const card = event.target.closest('[data-card="claude"], [data-card="codex"], [data-card="agy"], [data-card="grok"], [data-card="deepseek"], [data-card="manus"]');
       if (!card || event.button !== 0 || event.target.closest(window.PanelHooks.pointerdownExcludeSelector)) return;
       cardDrag = { card, pointerId: event.pointerId, startY: event.clientY, dragging: false };
       card.setPointerCapture(event.pointerId);
@@ -478,7 +787,7 @@
         document.documentElement.classList.add("is-card-dragging");
       }
       event.preventDefault();
-      const cards = [...document.querySelectorAll('[data-card="claude"], [data-card="codex"], [data-card="agy"], [data-card="grok"]')]
+      const cards = [...document.querySelectorAll('[data-card="claude"], [data-card="codex"], [data-card="agy"], [data-card="grok"], [data-card="deepseek"], [data-card="manus"]')]
         .filter((card) => card.offsetParent !== null);
       const target = cards.find((card) => card !== cardDrag.card && event.clientY < card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2);
       if (target) target.parentElement.insertBefore(cardDrag.card, target);
@@ -514,9 +823,13 @@
       codex: { session: {}, weekly: {} },
       agy: { session: {}, weekly: {}, groupName: "" },
       grok: { weekly: {} },
-      cardOrder: ["claude", "codex", "agy", "grok"],
+      deepseek: { available: false },
+      manus: { available: false },
+      cardOrder: ["claude", "codex", "agy", "grok", "deepseek", "manus"],
       hideAgy: true,
       hideGrok: true,
+      hideDeepseek: false,
+      hideManus: false,
       projects: [],
       projectsYesterday: [],
       projects7d: [],

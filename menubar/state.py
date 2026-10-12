@@ -14,25 +14,28 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from datetime import time as datetime_time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict, cast
 
+from i18n import _t
 from installer.statusline_settings import _statusline_enabled
-from loaders import codex_loader, grok_loader, muse_loader
+from loaders import codex_loader, grok_loader
 from loaders.claude_paths import claude_config_dirs
-from loaders.claude_usage import PollOutcome, PollState
 from loaders.codex_paths import codex_home
 from loaders.history_loader import UsageEntry, load_entries
-from menubar.prefs import _hide_claude_enabled, _hide_codex_enabled, _quota_card_order
-from quota.burn_rate import (
-    WARNING_PERCENT_FLOOR,
-    WEEKLY_WINDOW_SECONDS,
-    BurnRateTracker,
-    assess_weekly_quota,
+from menubar.prefs import (
+    _hide_claude_enabled,
+    _hide_codex_enabled,
+    _hide_deepseek_enabled,
+    _hide_footer_enabled,
+    _hide_manus_enabled,
+    _hide_projects_enabled,
+    _quota_card_order,
 )
+from pricing import calculate_cost
+from quota.burn_rate import WARNING_PERCENT_FLOOR, BurnRateTracker
 from quota.usage_rate import GROUP_NAMES
-from usage_common.i18n import _t
-from usage_common.pricing import calculate_cost
-from usage_common.service_status import ServiceStatus
+from service_status import ServiceStatus
+from usage_client import PollOutcome, PollState
 from usage_common.time_utils import parse_iso8601_utc_or_raise
 
 if TYPE_CHECKING:
@@ -64,7 +67,6 @@ def file_event_refresh_decision(
         refresh_now=False,
         trailing_delay=max(0.0, min_interval - (now - last_refresh_started_at)),
     )
-
 
 logger = logging.getLogger(__name__)
 
@@ -99,13 +101,6 @@ class QuotaRowState:
     warning: bool = False
     available: bool = True
     reset_text_compact: str = ""
-    reset_done: bool = False
-
-    # Keep percent unchanged for quota notifications; renderers use display_percent.
-
-    @property
-    def display_percent(self) -> float | None:
-        return 0.0 if self.reset_done else self.percent
 
 
 class CodexStaleState(TypedDict):
@@ -114,7 +109,6 @@ class CodexStaleState(TypedDict):
 
 class AgyStaleState(TypedDict):
     ageText: str
-    tooltip: NotRequired[str]
 
 
 class GrokStaleState(TypedDict):
@@ -158,15 +152,18 @@ class PopoverState:
     hide_codex: bool = False
     hide_agy: bool = True
     hide_grok: bool = True
+    hide_deepseek: bool = False
+    hide_manus: bool = False
+    hide_projects: bool = False
+    hide_footer: bool = False
     codex_stale: CodexStaleState | None = None
     codex_credits: CodexCreditsState | None = None
     agy_stale: AgyStaleState | None = None
     grok_stale: GrokStaleState | None = None
-    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok")
+    deepseek: dict[str, Any] | None = None
+    manus: dict[str, Any] | None = None
+    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus")
     history_error: HistoryLoadErrorState | None = None
-    refresh_status: tuple[str, bool] | None = None
-    refresh_queued: bool = False
-
 
 @dataclass(frozen=True, slots=True)
 class HistorySourceScan:
@@ -272,7 +269,6 @@ def _history_file_sources() -> tuple[Path, ...]:
         codex_loader.STATE_DB,
         codex_dir / "state_5.sqlite-wal",
         grok_loader.GROK_LOG_PATH,
-        *muse_loader.session_paths(),
     )
 
 
@@ -298,14 +294,12 @@ def _build_history_source_index(now: float) -> HistorySourceIndex:
     return HistorySourceIndex(file_stats=file_stats, last_full_scan_at=now)
 
 
-def _is_indexed_history_path(
-    path: Path, file_sources: set[Path], directory_sources: tuple[Path, ...]
-) -> bool:
-    if path in file_sources:
+def _is_indexed_history_path(path: Path) -> bool:
+    if path in _history_file_sources():
         return True
     if path.suffix != ".jsonl":
         return False
-    return any(path == root or root in path.parents for root in directory_sources)
+    return any(path == root or root in path.parents for root in _history_directory_sources())
 
 
 def _update_history_source_index(
@@ -313,10 +307,19 @@ def _update_history_source_index(
     dirty_paths: set[Path],
 ) -> HistorySourceIndex:
     file_stats = dict(index.file_stats)
-    file_sources = set(_history_file_sources())
-    directory_sources = _history_directory_sources()
     for path in dirty_paths:
-        if not _is_indexed_history_path(path, file_sources, directory_sources):
+        try:
+            if path.is_dir():
+                for root in _history_directory_sources():
+                    if path == root or root in path.parents or path in root.parents:
+                        for p in _jsonl_paths(path):
+                            entry = _stat_index_entry(p)
+                            if entry is not None:
+                                file_stats[p] = entry
+                continue
+        except OSError:
+            pass
+        if not _is_indexed_history_path(path):
             continue
         entry = _stat_index_entry(path)
         if entry is None:
@@ -326,50 +329,44 @@ def _update_history_source_index(
     return HistorySourceIndex(file_stats, index.last_full_scan_at)
 
 
+def _source_fingerprint_from_index(
+    source: Path,
+    file_stats: dict[Path, tuple[int, int]],
+) -> tuple[str, int, float]:
+    if source in _history_file_sources():
+        entry = file_stats.get(source)
+        return (str(source), int(entry is not None), 0.0 if entry is None else entry[0] / 1e9)
+    mtimes = [
+        entry[0]
+        for path, entry in file_stats.items()
+        if path == source or source in path.parents
+    ]
+    return (str(source), len(mtimes), max(mtimes, default=0) / 1e9)
+
+
 def _history_scan_from_index(index: HistorySourceIndex) -> HistorySourceScan:
     directory_sources = _history_directory_sources()
     file_sources = _history_file_sources()
-    root_parts = {root: root.parts for root in directory_sources}
-    paths_by_root: dict[Path, list[Path]] = {root: [] for root in directory_sources}
-    for path in index.file_stats:
-        path_parts = path.parts
-        for root, parts in root_parts.items():
-            if path_parts[: len(parts)] == parts:
-                paths_by_root[root].append(path)
-
-    source_fingerprint_items: list[tuple[str, int, float]] = []
-    for source in (*directory_sources, *file_sources):
-        if source in file_sources:
-            entry = index.file_stats.get(source)
-            source_fingerprint_items.append(
-                (str(source), int(entry is not None), 0.0 if entry is None else entry[0] / 1e9)
-            )
-        else:
-            mtimes = [index.file_stats[path][0] for path in paths_by_root[source]]
-            source_fingerprint_items.append(
-                (str(source), len(mtimes), max(mtimes, default=0) / 1e9)
-            )
-    source_fingerprint = tuple(source_fingerprint_items)
+    source_fingerprint = tuple(
+        _source_fingerprint_from_index(source, index.file_stats)
+        for source in (*directory_sources, *file_sources)
+    )
     file_fingerprint = tuple(
         (str(path), entry[1], entry[0] / 1e9)
         for path, entry in sorted(index.file_stats.items(), key=lambda item: str(item[0]))
     )
     fingerprint = source_fingerprint + file_fingerprint
-    # CLAUDE_CONFIG_DIR may list several directories, so only the Codex roots are fixed.
-    *claude_roots, sessions_root, archived_root = directory_sources
+    claude_root, sessions_root, archived_root = directory_sources
     claude_paths = tuple(
-        dict.fromkeys(
-            path for root in claude_roots for path in paths_by_root[root] if path.suffix == ".jsonl"
-        )
+        path
+        for path in index.file_stats
+        if path.suffix == ".jsonl" and (path == claude_root or claude_root in path.parents)
     )
     codex_paths = tuple(
         path
         for path in index.file_stats
         if path.suffix == ".jsonl"
-        and any(
-            path.parts[: len(root_parts[root])] == root_parts[root]
-            for root in (sessions_root, archived_root)
-        )
+        and any(path == root or root in path.parents for root in (sessions_root, archived_root))
     )
     codex_rate_limit_candidates = tuple(
         (path, index.file_stats[path][0] / 1e9)
@@ -377,8 +374,8 @@ def _history_scan_from_index(index: HistorySourceIndex) -> HistorySourceScan:
         if all(
             not part.startswith(".")
             for root in (sessions_root, archived_root)
-            if path.parts[: len(root_parts[root])] == root_parts[root]
-            for part in path.parts[len(root_parts[root]) :]
+            if path == root or root in path.parents
+            for part in path.relative_to(root).parts
         )
     )
     return HistorySourceScan(
@@ -429,11 +426,8 @@ def app_load_history_entries(
 
     entries: list[UsageEntry] = []
     error_key: str | None = None
-    read_failures: list[Path] = []
     try:
-        entries.extend(
-            load_entries(hours_back=0, jsonl_paths=scan.claude_paths, read_failures=read_failures)
-        )
+        entries.extend(load_entries(hours_back=0, jsonl_paths=scan.claude_paths))
     except Exception as exc:
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("Claude project usage load failed", exc_info=True)
@@ -450,16 +444,9 @@ def app_load_history_entries(
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("Grok project usage load failed", exc_info=True)
         error_key = _classify_history_load_error(exc)
-    try:
-        entries.extend(muse_loader.load_entries(hours_back=0))
-    except Exception as exc:
-        if os.environ.get("USAGE_DEBUG") == "1":
-            logger.warning("Muse project usage load failed", exc_info=True)
-        error_key = _classify_history_load_error(exc)
     app._history_load_error_key = error_key
-    if error_key is None and not read_failures:
-        app._history_entries_cache = list(entries)
-        app._history_entries_cache_fingerprint = fingerprint
+    app._history_entries_cache = list(entries)
+    app._history_entries_cache_fingerprint = fingerprint
     return entries
 
 
@@ -553,7 +540,9 @@ def project_rows_for_windows(
     local_today = local_now.date()
     local_tz = local_now.tzinfo
     assert local_tz is not None
-    today_start = datetime.combine(local_today, datetime_time.min, tzinfo=local_tz).astimezone(UTC)
+    today_start = datetime.combine(local_today, datetime_time.min, tzinfo=local_tz).astimezone(
+        UTC
+    )
     tomorrow_start = datetime.combine(
         local_today + timedelta(days=1), datetime_time.min, tzinfo=local_tz
     ).astimezone(UTC)
@@ -649,7 +638,9 @@ def codex_stale_state(updated_at: str, now: float, language: str) -> CodexStaleS
     return {"ageText": _t(language, "codex_stale_hours", hours=hours)}
 
 
-def history_load_error_state(reason_key: str | None, language: str) -> HistoryLoadErrorState | None:
+def history_load_error_state(
+    reason_key: str | None, language: str
+) -> HistoryLoadErrorState | None:
     if reason_key is None:
         return None
     return {"reasonText": _t(language, reason_key)}
@@ -720,7 +711,6 @@ def codex_rows(
                 language,
                 forecast_seconds=burn_rate_trackers["codex_weekly"].forecast_seconds(),
                 warning_max_seconds=24 * 3600,
-                window_seconds=WEEKLY_WINDOW_SECONDS,
             ),
         )
         return rows, 12, "gpt-5", None, None
@@ -768,7 +758,9 @@ def codex_rows(
     session_title = (
         ""
         if session_absent
-        else _codex_window_title(rate_limits.five_hour_window_minutes, "session_label", language)
+        else _codex_window_title(
+            rate_limits.five_hour_window_minutes, "session_label", language
+        )
     )
     # A slot with neither usage nor a window is absent (the free plan has no
     # weekly window) — leave its label blank rather than mislabel it "Weekly".
@@ -778,7 +770,9 @@ def codex_rows(
     weekly_title = (
         ""
         if weekly_absent
-        else _codex_window_title(rate_limits.seven_day_window_minutes, "weekly_label", language)
+        else _codex_window_title(
+            rate_limits.seven_day_window_minutes, "weekly_label", language
+        )
     )
     rows = (
         _quota_row(
@@ -802,11 +796,6 @@ def codex_rows(
                 min_span_seconds=WEEKLY_FORECAST_MIN_SPAN_SECONDS,
             ),
             warning_max_seconds=24 * 3600,
-            window_seconds=(
-                rate_limits.seven_day_window_minutes * 60
-                if rate_limits.seven_day_window_minutes is not None
-                else WEEKLY_WINDOW_SECONDS
-            ),
         ),
     )
     credits: CodexCreditsState | None = (
@@ -843,11 +832,17 @@ def build_popover_state(
     hide_codex: bool,
     hide_agy: bool,
     hide_grok: bool,
+    hide_deepseek: bool = False,
+    hide_manus: bool = False,
+    hide_projects: bool = False,
+    hide_footer: bool = False,
     codex_stale: CodexStaleState | None,
     codex_credits: CodexCreditsState | None = None,
     agy_stale: AgyStaleState | None,
     grok_stale: GrokStaleState | None,
-    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok"),
+    deepseek: dict[str, Any] | None = None,
+    manus: dict[str, Any] | None = None,
+    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus"),
     history_error: HistoryLoadErrorState | None = None,
     service_statuses: tuple[ServiceStatus, ...] = (),
 ) -> PopoverState:
@@ -879,7 +874,6 @@ def build_popover_state(
             CLAUDE_COLOR,
             language,
             forecast_seconds=burn_rate_trackers["claude_session"].forecast_seconds(),
-            allow_unknown_reset=snapshot.data_source == "claude-desktop",
         )
         claude_weekly = _quota_row(
             _t(language, "weekly_label"),
@@ -893,8 +887,6 @@ def build_popover_state(
                 min_span_seconds=WEEKLY_FORECAST_MIN_SPAN_SECONDS,
             ),
             warning_max_seconds=24 * 3600,
-            window_seconds=WEEKLY_WINDOW_SECONDS,
-            allow_unknown_reset=snapshot.data_source == "claude-desktop",
         )
         status_value = _status_message_value(outcome, "status_synced", language)
         if snapshot.is_stale or snapshot.data_source != "hook":
@@ -904,7 +896,11 @@ def build_popover_state(
             "status_text",
             value=status_value,
         )
-        status_long = bool(outcome.message) or snapshot.is_stale or snapshot.data_source != "hook"
+        status_long = (
+            bool(outcome.message)
+            or snapshot.is_stale
+            or snapshot.data_source != "hook"
+        )
     else:
         claude_session = _missing_row(_t(language, "session_label"), CLAUDE_COLOR, language)
         claude_weekly = _missing_row(_t(language, "weekly_label"), CLAUDE_COLOR, language)
@@ -964,10 +960,16 @@ def build_popover_state(
         hide_codex=hide_codex,
         hide_agy=hide_agy,
         hide_grok=hide_grok,
+        hide_deepseek=hide_deepseek,
+        hide_manus=hide_manus,
+        hide_projects=hide_projects,
+        hide_footer=hide_footer,
         codex_stale=codex_stale,
         codex_credits=codex_credits,
         agy_stale=agy_stale,
         grok_stale=grok_stale,
+        deepseek=deepseek,
+        manus=manus,
         card_order=card_order,
         history_error=history_error,
     )
@@ -982,46 +984,23 @@ def _quota_row(
     language: str = "en",
     forecast_seconds: float | None = None,
     warning_max_seconds: float | None = None,
-    *,
-    window_seconds: float | None = None,
-    allow_unknown_reset: bool = False,
 ) -> QuotaRowState:
-    if pct is None or (resets_at is None and not allow_unknown_reset):
+    if pct is None or resets_at is None:
         return _missing_row(title, color, language)
     pct = max(0.0, min(100.0, float(pct)))
-    if resets_at is None:
-        return QuotaRowState(
-            title=title,
-            percent=pct,
-            percent_text=_t(language, "percent_used", value=_format_percent(pct)),
-            reset_text=_t(language, "reset_placeholder"),
-            color=_bar_color(pct, color),
-        )
     time_to_reset = resets_at - now
     warning_seconds: float | None = None
-    if time_to_reset <= 0:
-        reset_text = _t(language, "reset_done")
-        warning = False
-    elif time_to_reset < 60:
+    if time_to_reset < 60:
         reset_text = _t(language, "reset_imminent")
         warning = False
     else:
-        if window_seconds is None:
-            if (
-                forecast_seconds is not None
-                and 0 < forecast_seconds < time_to_reset
-                and (warning_max_seconds is None or forecast_seconds < warning_max_seconds)
-                and pct >= WARNING_PERCENT_FLOOR
-            ):
-                warning_seconds = forecast_seconds
-        else:
-            warning_seconds = assess_weekly_quota(
-                pct,
-                time_to_reset,
-                window_seconds,
-                forecast_seconds,
-                warning_max_seconds,
-            )
+        if (
+            forecast_seconds is not None
+            and 0 < forecast_seconds < time_to_reset
+            and (warning_max_seconds is None or forecast_seconds < warning_max_seconds)
+            and pct >= WARNING_PERCENT_FLOOR
+        ):
+            warning_seconds = forecast_seconds
         warning = warning_seconds is not None
         if warning_seconds is not None:
             reset_text = _t(
@@ -1036,17 +1015,15 @@ def _quota_row(
                 "reset_in",
                 time=format_human_time(time_to_reset, language),
             )
+    rem = max(0.0, 100.0 - pct)
     row = QuotaRowState(
         title=title,
         percent=pct,
-        percent_text=_t(
-            language, "percent_used", value=_format_percent(0.0 if time_to_reset <= 0 else pct)
-        ),
+        percent_text=f"剩余 {_format_percent(rem)}%",
         reset_text=reset_text,
-        color=_bar_color(0.0 if time_to_reset <= 0 else pct, color),
+        color=_bar_color(pct, color),
         warning=warning,
         available=True,
-        reset_done=time_to_reset <= 0,
     )
     if warning_seconds is not None:
         row.reset_text_compact = _t(
@@ -1078,7 +1055,9 @@ def _format_percent(value: float) -> str:
     return f"{value:.1f}"
 
 
-def popover_dimensions(state: PopoverState, panel: UsagePanel | None = None) -> tuple[float, float]:
+def popover_dimensions(
+    state: PopoverState, panel: UsagePanel | None = None
+) -> tuple[float, float]:
     # Imported here, not at module scope: panels pulls in PyObjC, and this
     # module stays importable without the ObjC runtime so the projections
     # above remain unit-testable.
@@ -1088,7 +1067,9 @@ def popover_dimensions(state: PopoverState, panel: UsagePanel | None = None) -> 
     width, base_height = active_panel.preferred_size()
     claude_deduct = active_panel.claude_card_height if state.hide_claude else 0.0
     codex_deduct = active_panel.codex_card_height if state.hide_codex else 0.0
-    codex_missing_rows = sum(not row.title for row in (state.codex_session, state.codex_weekly))
+    codex_missing_rows = sum(
+        not row.title for row in (state.codex_session, state.codex_weekly)
+    )
     codex_row_deduct = (
         getattr(active_panel, "codex_row_height", 0.0) * codex_missing_rows
         if not state.hide_codex and active_panel.codex_card_height > 0
@@ -1098,9 +1079,13 @@ def popover_dimensions(state: PopoverState, panel: UsagePanel | None = None) -> 
     agy_deduct = agy_card_height if state.hide_agy else 0.0
     grok_card_height = getattr(active_panel, "grok_card_height", 0.0)
     grok_deduct = grok_card_height if state.hide_grok else 0.0
+    projects_deduct = 200.0 if state.hide_projects else 0.0
+    footer_deduct = 40.0 if state.hide_footer else 0.0
     install_extra = INSTALL_BUTTON_EXTRA_HEIGHT if state.show_install_button else 0.0
     status_extra = (
-        getattr(active_panel, "status_wrap_extra_height", 0.0) if state.status_long else 0.0
+        getattr(active_panel, "status_wrap_extra_height", 0.0)
+        if state.status_long
+        else 0.0
     )
     codex_credits_extra = (
         24.0
@@ -1127,6 +1112,8 @@ def popover_dimensions(state: PopoverState, panel: UsagePanel | None = None) -> 
         - codex_row_deduct
         - agy_deduct
         - grok_deduct
+        - projects_deduct
+        - footer_deduct
     )
     return width, height
 
@@ -1150,7 +1137,7 @@ def _empty_state(language: str = "en") -> PopoverState:
         codex_weekly=_missing_row(_t(language, "weekly_label"), CODEX_COLOR, language),
         agy_session=_missing_row(_t(language, "session_label"), AGY_COLOR, language),
         agy_weekly=_missing_row(_t(language, "weekly_label"), AGY_COLOR, language),
-        agy_group_name="",
+        agy_group_name="--",
         grok_weekly=_missing_row(_t(language, "weekly_label"), GROK_COLOR, language),
         projects=[],
         projects_yesterday=[],
@@ -1166,12 +1153,16 @@ def _empty_state(language: str = "en") -> PopoverState:
         show_install_button=False,
         hide_claude=_hide_claude_enabled(),
         hide_codex=_hide_codex_enabled(),
+        hide_projects=_hide_projects_enabled(),
+        hide_footer=_hide_footer_enabled(),
         # Keep the card mounted while the first background probe is running.
         # Otherwise startup shows the shorter layout until agy finishes, which
         # looks like the integration never loaded even though the child process
         # is already active.
         hide_agy=menubar_agy.find_agy() is None,
         hide_grok=True,
+        hide_deepseek=_hide_deepseek_enabled(),
+        hide_manus=_hide_manus_enabled(),
         card_order=_quota_card_order(),
     )
 
@@ -1207,8 +1198,6 @@ def _today_title(
 
     try:
         today = datetime.now().astimezone().date()
-        start = datetime.combine(today, datetime_time.min).astimezone(UTC)
-        end = datetime.combine(today + timedelta(days=1), datetime_time.min).astimezone(UTC)
         total_tokens = 0
         total_cost = 0.0
 
@@ -1218,7 +1207,7 @@ def _today_title(
             else list(load_entries(hours_back=24)) + codex_loader.load_entries(hours_back=24)
         )
         for entry in all_entries:
-            if not start <= entry.timestamp < end:
+            if entry.timestamp.astimezone().date() != today:
                 continue
             total_tokens += entry.total_tokens
             total_cost += calculate_cost(entry)
@@ -1240,14 +1229,14 @@ def _yesterday_title(
 
     try:
         yesterday = datetime.now().astimezone().date() - timedelta(days=1)
-        start = datetime.combine(yesterday, datetime_time.min).astimezone(UTC)
-        end = datetime.combine(yesterday + timedelta(days=1), datetime_time.min).astimezone(UTC)
         all_entries = (
             entries
             if entries is not None
             else list(load_entries(hours_back=48)) + codex_loader.load_entries(hours_back=48)
         )
-        selected = [entry for entry in all_entries if start <= entry.timestamp < end]
+        selected = [
+            entry for entry in all_entries if entry.timestamp.astimezone().date() == yesterday
+        ]
         total_tokens = sum(entry.total_tokens for entry in selected)
         total_cost = sum(calculate_cost(entry) for entry in selected)
     except Exception:

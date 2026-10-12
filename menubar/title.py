@@ -22,7 +22,9 @@ from menubar.chrome import (
     _agy_menubar_icon,
     _claude_menubar_icon,
     _codex_menubar_icon,
+    _deepseek_menubar_icon,
     _grok_menubar_icon,
+    _manus_menubar_icon,
     _menubar_icon_attachment_string,
 )
 from menubar.state import PopoverState, _format_percent
@@ -61,44 +63,77 @@ def _menubar_text_string(app: _TitleApp, text: str) -> Any:
     return attributed
 
 
+def _format_menubar_percent(rem: float | None) -> str:
+    if rem is None:
+        return "--"
+    val = max(0.0, min(100.0, float(rem)))
+    rounded = int(round(val))
+    if val > 0 and rounded == 0:
+        rounded = 1
+    return f"{rounded}%"
+
+
 def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
     title = NSMutableAttributedString.alloc().init()
     if not state.hide_claude:
-        claude_percent = (
-            "--"
-            if state.claude_session.display_percent is None
-            else f"{_format_percent(state.claude_session.display_percent)}%"
+        claude_rem = (
+            None
+            if state.claude_session.percent is None
+            else max(0.0, 100.0 - state.claude_session.percent)
         )
+        claude_percent = _format_menubar_percent(claude_rem)
         title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {claude_percent}"))
     if not state.hide_codex and (app.codex_5h_pct is not None or state.hide_claude):
-        codex_row = (
-            state.codex_session if state.codex_session.percent is not None else state.codex_weekly
+        codex_rem = (
+            None
+            if app.codex_5h_pct is None
+            else max(0.0, 100.0 - float(app.codex_5h_pct))
         )
-        codex_used = 0.0 if codex_row.reset_done else app.codex_5h_pct
-        codex_percent = "--" if codex_used is None else f"{_format_percent(float(codex_used))}%"
+        codex_percent = _format_menubar_percent(codex_rem)
         if not state.hide_claude:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_codex_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {codex_percent}"))
-    agy_session_percent = state.agy_session.display_percent
+    agy_session_percent = state.agy_session.percent
     agy_visible = not state.hide_agy and agy_session_percent is not None
     if agy_visible:
         assert agy_session_percent is not None
-        agy_percent = f"{_format_percent(agy_session_percent)}%"
+        agy_rem = max(0.0, 100.0 - agy_session_percent)
+        agy_percent = _format_menubar_percent(agy_rem)
         if title.length() > 0:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_agy_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {agy_percent}"))
-    grok_weekly_percent = state.grok_weekly.display_percent
+    grok_weekly_percent = state.grok_weekly.percent
     grok_visible = not state.hide_grok and grok_weekly_percent is not None
     if grok_visible:
         assert grok_weekly_percent is not None
-        grok_percent = f"{_format_percent(grok_weekly_percent)}%"
+        grok_rem = max(0.0, 100.0 - grok_weekly_percent)
+        grok_percent = _format_menubar_percent(grok_rem)
         if title.length() > 0:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_grok_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {grok_percent}"))
+    deepseek_data = state.deepseek
+    deepseek_visible = not state.hide_deepseek and deepseek_data and deepseek_data.get("configured")
+    if deepseek_visible:
+        int_bal = int(round(float(deepseek_data.get("totalBalance", 0.0) or 0.0)))
+        sym = deepseek_data.get("currencySymbol", "¥")
+        ds_text = f" {sym}{int_bal}"
+        if title.length() > 0:
+            title.appendAttributedString_(_menubar_text_string(app, "  "))
+        title.appendAttributedString_(_menubar_icon_attachment_string(_deepseek_menubar_icon()))
+        title.appendAttributedString_(_menubar_text_string(app, ds_text))
+    manus_data = state.manus
+    manus_visible = not state.hide_manus and manus_data and manus_data.get("available")
+    if manus_visible:
+        eff_credits = int(manus_data.get("effectiveCredits", 0) or 0)
+        manus_text = f" {eff_credits}"
+        if title.length() > 0:
+            title.appendAttributedString_(_menubar_text_string(app, "  "))
+        title.appendAttributedString_(_menubar_icon_attachment_string(_manus_menubar_icon()))
+        title.appendAttributedString_(_menubar_text_string(app, manus_text))
     if title.length() == 0:
         # Both providers hidden: keep a recognizable, clickable status item.
         title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
@@ -123,24 +158,31 @@ def _set_button_title(app: _TitleApp, state: PopoverState) -> None:
 def _compose_title(app: _TitleApp, state: PopoverState) -> str:
     parts: list[str] = []
     if not state.hide_claude:
-        claude = (
-            "--"
-            if state.claude_session.display_percent is None
-            else f"{_format_percent(state.claude_session.display_percent)}%"
+        claude_rem = (
+            None
+            if state.claude_session.percent is None
+            else max(0.0, 100.0 - state.claude_session.percent)
         )
-        parts.append(claude)
+        parts.append(_format_menubar_percent(claude_rem))
     if not state.hide_codex and (app.codex_5h_pct is not None or state.hide_claude):
-        codex_row = (
-            state.codex_session if state.codex_session.percent is not None else state.codex_weekly
+        codex_rem = (
+            None
+            if app.codex_5h_pct is None
+            else max(0.0, 100.0 - float(app.codex_5h_pct))
         )
-        codex_used = 0.0 if codex_row.reset_done else app.codex_5h_pct
-        codex = "--" if codex_used is None else f"{_format_percent(float(codex_used))}%"
-        parts.append(codex)
-    if not state.hide_agy and state.agy_session.display_percent is not None:
-        agy = f"{_format_percent(state.agy_session.display_percent)}%"
-        parts.append(agy)
-    if not state.hide_grok and state.grok_weekly.display_percent is not None:
-        grok = f"{_format_percent(state.grok_weekly.display_percent)}%"
-        parts.append(grok)
+        parts.append(_format_menubar_percent(codex_rem))
+    if not state.hide_agy and state.agy_session.percent is not None:
+        agy_rem = max(0.0, 100.0 - state.agy_session.percent)
+        parts.append(_format_menubar_percent(agy_rem))
+    if not state.hide_grok and state.grok_weekly.percent is not None:
+        grok_rem = max(0.0, 100.0 - state.grok_weekly.percent)
+        parts.append(_format_menubar_percent(grok_rem))
+    if not state.hide_deepseek and state.deepseek and state.deepseek.get("configured"):
+        int_bal = int(round(float(state.deepseek.get("totalBalance", 0.0) or 0.0)))
+        sym = state.deepseek.get("currencySymbol", "¥")
+        parts.append(f"{sym}{int_bal}")
+    if not state.hide_manus and state.manus and state.manus.get("available"):
+        eff_credits = int(state.manus.get("effectiveCredits", 0) or 0)
+        parts.append(str(eff_credits))
     # Both providers hidden: keep a recognizable, clickable status item.
     return " · ".join(parts) if parts else "usage"

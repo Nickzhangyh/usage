@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 lollapalooza <https://github.com/aqua5230>
+#
+# Part of "usage". Free software licensed under the GNU Affero General Public
+# License v3.0 only; see the LICENSE file for full terms and the warranty disclaimer.
+
+from __future__ import annotations
+
+from typing import Any
+from loaders.manus_loader import ManusQuotaResult
+
+
+def format_manus_card(result: ManusQuotaResult | None, language: str = "en") -> dict[str, Any]:
+    if result is None or not result.is_configured:
+        return {
+            "configured": False,
+            "available": False,
+            "effectiveCredits": 0,
+            "formattedCredits": "--",
+            "totalCredits": 0,
+            "periodicCredits": 0,
+            "proMonthlyCredits": 0,
+            "freeCredits": 0,
+            "refreshCredits": 0,
+            "maxRefreshCredits": 0,
+            "membershipVersion": "pro",
+            "planName": "Manus Pro",
+            "userName": "",
+            "email": "",
+            "nextRefreshTime": "",
+            "errorMessage": None,
+        }
+
+    plan_display = f"Manus {result.membership_version.capitalize()}" if result.membership_version else "Manus Pro"
+    return {
+        "configured": True,
+        "available": result.is_available,
+        "effectiveCredits": result.effective_credits,
+        "formattedCredits": f"{result.effective_credits:,}",
+        "totalCredits": result.total_credits,
+        "periodicCredits": result.periodic_credits,
+        "proMonthlyCredits": result.pro_monthly_credits,
+        "freeCredits": result.free_credits,
+        "refreshCredits": result.refresh_credits,
+        "maxRefreshCredits": result.max_refresh_credits,
+        "membershipVersion": result.membership_version,
+        "planName": plan_display,
+        "userName": result.user_name,
+        "email": result.email,
+        "nextRefreshTime": result.next_refresh_time,
+        "errorMessage": result.error_message,
+    }
+
+
+def format_menubar_title(result: ManusQuotaResult | None) -> str:
+    if result is None or not result.is_configured or not result.is_available or result.error_message:
+        return "--"
+    return str(int(result.effective_credits))
