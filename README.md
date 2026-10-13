@@ -2,9 +2,12 @@
   <img src="docs/readme-logo.png" alt="usage logo" width="128">
 </p>
 
-# usage
+# usage (DeepSeek & Manus Pro 定制增强版)
 
-### Your Claude Code, Codex, Antigravity and Grok CLI quota, always on screen.
+> **🌟 专享定制分支**：本版本深度增加了 **DeepSeek 余额查询** 与 **Manus Pro 积分点数** 实时监控支持，并优化了菜单栏纯整数显示与 Codex 刷新机制。  
+> 📖 详细项目说明、修改内容清单、安装环境与 AI 部署提示词请见：[**README_CUSTOM_EDITION.md (定制版完整说明)**](README_CUSTOM_EDITION.md)
+
+### Your Claude Code, Codex, Antigravity, Grok, DeepSeek and Manus CLI & Quota, always on screen.
 
 `usage` puts your 5-hour and weekly limits in the macOS menu bar or Windows system tray, colored from green to red. Hitting the limit halfway through a long refactor is a bad way to find out you were running low. Now you see it coming. There's nothing to run and no page to open.
 
