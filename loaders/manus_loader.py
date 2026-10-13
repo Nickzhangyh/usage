@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import time
 import urllib.error
@@ -18,8 +19,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT_SECONDS = 8.0
+_TIMEOUT_SECONDS = 12.0
 _CACHED_RESULT: ManusQuotaResult | None = None
+_CACHED_TOKEN: str | None = None
 _LAST_FETCH_TIME: float = 0.0
 _CACHE_TTL_SECONDS: float = 30.0
 
@@ -45,20 +47,56 @@ class ManusQuotaResult:
 
 
 def _read_local_session_cookie() -> str | None:
+    global _CACHED_TOKEN
     cookie_path = os.path.expanduser("~/Library/Application Support/Manus/Cookies")
     if not os.path.exists(cookie_path):
-        return None
-    uri = f"file://{cookie_path}?mode=ro"
+        return _CACHED_TOKEN
+
+    # 1. Try reading directly with read-only mode and 5s timeout
     try:
-        conn = sqlite3.connect(uri, uri=True)
+        uri = f"file://{cookie_path}?mode=ro"
+        conn = sqlite3.connect(uri, uri=True, timeout=5.0)
         c = conn.cursor()
         c.execute("SELECT value FROM cookies WHERE host_key LIKE '%manus.im%' AND name = 'session_id'")
         row = c.fetchone()
         conn.close()
-        return row[0] if row else None
+        if row and row[0]:
+            _CACHED_TOKEN = str(row[0])
+            return _CACHED_TOKEN
     except Exception as exc:
-        logger.debug("Failed to read Manus cookies directly: %s", exc)
-        return None
+        logger.debug("Direct read of Manus cookies failed (possibly locked): %s", exc)
+
+    # 2. If locked by Manus Studio writing transactions, snapshot to temp file and read
+    snap_path = "/tmp/manus_cookies_snap.db"
+    try:
+        shutil.copy2(cookie_path, snap_path)
+        wal_path = cookie_path + "-wal"
+        if os.path.exists(wal_path):
+            try:
+                shutil.copy2(wal_path, snap_path + "-wal")
+            except Exception:
+                pass
+        conn = sqlite3.connect(snap_path, timeout=3.0)
+        c = conn.cursor()
+        c.execute("SELECT value FROM cookies WHERE host_key LIKE '%manus.im%' AND name = 'session_id'")
+        row = c.fetchone()
+        conn.close()
+        if row and row[0]:
+            _CACHED_TOKEN = str(row[0])
+            return _CACHED_TOKEN
+    except Exception as exc:
+        logger.debug("Snapshot read of Manus cookies failed: %s", exc)
+    finally:
+        try:
+            if os.path.exists(snap_path):
+                os.remove(snap_path)
+            if os.path.exists(snap_path + "-wal"):
+                os.remove(snap_path + "-wal")
+        except Exception:
+            pass
+
+    # 3. Fallback to in-memory cached token
+    return _CACHED_TOKEN
 
 
 def load_quota(
@@ -79,13 +117,30 @@ def load_quota(
         return _CACHED_RESULT
 
     result = _fetch_manus_data(token)
-    if result is not None:
+
+    # Resilient caching: if network or RPC fails but we have a valid previous result,
+    # preserve the cached quota so the menu bar doesn't flicker or lose credits!
+    if result is not None and result.is_available:
         _CACHED_RESULT = result
         _LAST_FETCH_TIME = now
+        return result
+
+    if _CACHED_RESULT is not None and _CACHED_RESULT.is_available:
+        # Transient failure: keep last known good credits
+        logger.warning(
+            "Manus quota fetch failed (%s); keeping cached quota of %d credits",
+            result.error_message if result else "unknown",
+            _CACHED_RESULT.effective_credits,
+        )
+        return _CACHED_RESULT
+
+    _CACHED_RESULT = result
+    _LAST_FETCH_TIME = now
     return result
 
 
-def _rpc_post_json(method: str, token: str) -> dict[str, Any] | None:
+def _rpc_post_json(method: str, token: str) -> tuple[dict[str, Any] | None, str | None]:
+    """Execute ConnectRPC call. Returns (data_dict, error_message)."""
     url = f"https://api.manus.im/user.v1.UserService/{method}"
     req = urllib.request.Request(
         url,
@@ -98,17 +153,38 @@ def _rpc_post_json(method: str, token: str) -> dict[str, Any] | None:
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
-            body = resp.read().decode("utf-8")
-            return json.loads(body)
-    except Exception as exc:
-        logger.debug("Manus UserService/%s call failed: %s", method, exc)
-        return None
+
+    last_error: str | None = None
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
+                body = resp.read().decode("utf-8")
+                return json.loads(body), None
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                return None, "登录已过期，请重新登录 Manus"
+            elif exc.code == 429:
+                return None, "请求过于频繁，稍后自动重试"
+            else:
+                last_error = f"HTTP {exc.code}"
+        except urllib.error.URLError as exc:
+            reason = str(getattr(exc, "reason", exc))
+            if "timed out" in reason.lower() or "handshake" in reason.lower():
+                last_error = "网络连接超时，稍后重试"
+            else:
+                last_error = f"网络请求失败 ({reason})"
+        except Exception as exc:
+            last_error = f"请求异常: {exc}"
+
+        if attempt == 0:
+            time.sleep(0.5)
+
+    logger.warning("Manus UserService/%s failed: %s", method, last_error)
+    return None, last_error
 
 
 def _fetch_manus_data(token: str) -> ManusQuotaResult:
-    credits_data = _rpc_post_json("GetAvailableCredits", token)
+    credits_data, err = _rpc_post_json("GetAvailableCredits", token)
     if not credits_data or not isinstance(credits_data, dict):
         return ManusQuotaResult(
             is_available=False,
@@ -125,12 +201,13 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
             user_name="",
             email="",
             updated_at=time.time(),
-            error_message="Query failed: please check Manus login",
+            error_message=err or "Query failed: please check Manus login",
             is_configured=True,
         )
 
     # Optional user profile
-    user_data = _rpc_post_json("UserInfo", token) or {}
+    user_data, _ = _rpc_post_json("UserInfo", token)
+    user_data = user_data or {}
 
     total = int(credits_data.get("totalCredits", 0) or 0)
     periodic = int(credits_data.get("periodicCredits", 0) or 0)

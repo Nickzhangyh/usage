@@ -126,7 +126,7 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         title.appendAttributedString_(_menubar_icon_attachment_string(_deepseek_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, ds_text))
     manus_data = state.manus
-    manus_visible = not state.hide_manus and manus_data and manus_data.get("available")
+    manus_visible = not state.hide_manus and manus_data and (manus_data.get("available") or int(manus_data.get("effectiveCredits", 0) or 0) > 0)
     if manus_visible:
         eff_credits = int(manus_data.get("effectiveCredits", 0) or 0)
         manus_text = f" {eff_credits}"
@@ -181,7 +181,7 @@ def _compose_title(app: _TitleApp, state: PopoverState) -> str:
         int_bal = int(round(float(state.deepseek.get("totalBalance", 0.0) or 0.0)))
         sym = state.deepseek.get("currencySymbol", "¥")
         parts.append(f"{sym}{int_bal}")
-    if not state.hide_manus and state.manus and state.manus.get("available"):
+    if not state.hide_manus and state.manus and (state.manus.get("available") or int(state.manus.get("effectiveCredits", 0) or 0) > 0):
         eff_credits = int(state.manus.get("effectiveCredits", 0) or 0)
         parts.append(str(eff_credits))
     # Both providers hidden: keep a recognizable, clickable status item.
