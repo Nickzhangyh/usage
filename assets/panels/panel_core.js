@@ -473,7 +473,7 @@
       card.dataset.card = "manus";
       card.style.setProperty("--accent", "#E87A40");
       card.innerHTML = `
-        <header class="header brand" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <header class="header brand" style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
           <div class="brand-icon manus-icon" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(232,122,64,0.15);color:#E87A40;flex:none;overflow:hidden;">
             <img src="../manus_color_menubar.png" width="22" height="22" style="border-radius:5px;object-fit:cover;" alt="Manus" />
           </div>
@@ -485,10 +485,7 @@
           </div>
           <div class="manus-badge" data-manus-credits style="font-weight:700;font-size:15px;color:#E87A40;margin-left:auto;white-space:nowrap;">--</div>
         </header>
-        <div class="row" data-row="manus-details" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px;opacity:0.85;">
-          <span data-manus-periodic></span>
-          <span data-manus-free></span>
-        </div>
+        <div class="reset" data-manus-reset></div>
       `;
       const projects = document.querySelector('[data-card="projects"]');
       if (projects) {
@@ -509,6 +506,10 @@
       if (!card) return;
       card.style.display = "";
 
+      // Remove points breakdown if previously present
+      const oldDetails = card.querySelector('[data-row="manus-details"]');
+      if (oldDetails) oldDetails.remove();
+
       const creditsEl = card.querySelector('[data-manus-credits]');
       if (creditsEl) {
         creditsEl.textContent = (manus.formattedCredits || "--") + " " + (t("credits_unit") || "点");
@@ -519,39 +520,25 @@
         planEl.textContent = (manus.membershipVersion ? manus.membershipVersion.toUpperCase() : "PRO");
       }
 
-      const periodicEl = card.querySelector('[data-manus-periodic]');
-      if (periodicEl) {
-        if (manus.proMonthlyCredits) {
-          periodicEl.textContent = `${t("manus_plan_credits")}: ${manus.periodicCredits || 0} / ${manus.proMonthlyCredits}`;
-          periodicEl.style.display = "";
-        } else if (manus.periodicCredits) {
-          periodicEl.textContent = `${t("manus_plan_credits")}: ${manus.periodicCredits}`;
-          periodicEl.style.display = "";
-        } else {
-          periodicEl.style.display = "none";
-        }
+      let resetEl = card.querySelector('[data-manus-reset]');
+      if (!resetEl) {
+        resetEl = document.createElement("div");
+        resetEl.className = "reset";
+        resetEl.dataset.manusReset = "";
+        card.appendChild(resetEl);
       }
 
-      const freeEl = card.querySelector('[data-manus-free]');
-      if (freeEl) {
-        if (manus.freeCredits) {
-          freeEl.textContent = `${t("manus_free_credits")}: ${manus.freeCredits}`;
-          freeEl.style.display = "";
-        } else {
-          freeEl.style.display = "none";
-        }
-      }
-
-      const detailsRow = card.querySelector('[data-row="manus-details"]');
-      if (detailsRow) {
-        if (manus.errorMessage) {
-          detailsRow.innerHTML = `<span style="color:#f87171;font-size:11px;">${manus.errorMessage}</span>`;
-          detailsRow.style.display = "";
-        } else if (!manus.periodicCredits && !manus.freeCredits) {
-          detailsRow.style.display = "none";
-        } else {
-          detailsRow.style.display = "flex";
-        }
+      if (manus.errorMessage) {
+        resetEl.textContent = manus.errorMessage;
+        resetEl.style.color = "#f87171";
+        resetEl.style.display = "";
+      } else if (manus.resetText) {
+        resetEl.textContent = manus.resetText;
+        resetEl.style.color = "";
+        resetEl.style.display = "";
+      } else {
+        resetEl.textContent = "";
+        resetEl.style.display = "none";
       }
     }
 

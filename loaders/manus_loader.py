@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import calendar
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import shutil
 import sqlite3
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +27,16 @@ _CACHED_RESULT: ManusQuotaResult | None = None
 _CACHED_TOKEN: str | None = None
 _LAST_FETCH_TIME: float = 0.0
 _CACHE_TTL_SECONDS: float = 30.0
+
+
+def _get_ssl_context() -> ssl.SSLContext | None:
+    try:
+        ctx = ssl.create_default_context()
+        if os.path.exists("/etc/ssl/cert.pem"):
+            ctx.load_verify_locations(cafile="/etc/ssl/cert.pem")
+        return ctx
+    except Exception:
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +55,7 @@ class ManusQuotaResult:
     user_name: str
     email: str
     updated_at: float
+    monthly_resets_at: float | None = None
     error_message: str | None = None
     is_configured: bool = True
 
@@ -157,7 +171,7 @@ def _rpc_post_json(method: str, token: str) -> tuple[dict[str, Any] | None, str 
     last_error: str | None = None
     for attempt in range(2):
         try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS, context=_get_ssl_context()) as resp:
                 body = resp.read().decode("utf-8")
                 return json.loads(body), None
         except urllib.error.HTTPError as exc:
@@ -183,6 +197,64 @@ def _rpc_post_json(method: str, token: str) -> tuple[dict[str, Any] | None, str 
     return None, last_error
 
 
+def _compute_monthly_reset_ts(user_data: dict[str, Any], credits_data: dict[str, Any]) -> float | None:
+    now_ts = time.time()
+    now_dt = datetime.fromtimestamp(now_ts, timezone.utc)
+
+    interval = str(user_data.get("membershipInterval", "")).lower()
+    period_end_raw = user_data.get("currentPeriodEnd") or (user_data.get("membershipInfo") or {}).get("currentPeriodEnd")
+    period_end_ts: float | None = None
+    if period_end_raw:
+        try:
+            period_end_ts = float(period_end_raw)
+        except (ValueError, TypeError):
+            pass
+
+    # If subscription is explicitly monthly and period end is in future, use it directly
+    if interval == "monthly" and period_end_ts and period_end_ts > now_ts:
+        return period_end_ts
+
+    anchor_dt: datetime | None = None
+    registered_at = user_data.get("registeredAt")
+    if registered_at and isinstance(registered_at, str):
+        try:
+            anchor_dt = datetime.fromisoformat(registered_at.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    if not anchor_dt and period_end_ts:
+        try:
+            anchor_dt = datetime.fromtimestamp(period_end_ts, timezone.utc)
+        except Exception:
+            pass
+
+    if not anchor_dt:
+        return None
+
+    day = anchor_dt.day
+    hour = anchor_dt.hour
+    minute = anchor_dt.minute
+    second = anchor_dt.second
+
+    # Check reset date in current month
+    year = now_dt.year
+    month = now_dt.month
+    max_day = calendar.monthrange(year, month)[1]
+    candidate = datetime(year, month, min(day, max_day), hour, minute, second, tzinfo=timezone.utc)
+    if candidate > now_dt:
+        return candidate.timestamp()
+
+    # Otherwise next month
+    if month == 12:
+        year += 1
+        month = 1
+    else:
+        month += 1
+    max_day = calendar.monthrange(year, month)[1]
+    candidate = datetime(year, month, min(day, max_day), hour, minute, second, tzinfo=timezone.utc)
+    return candidate.timestamp()
+
+
 def _fetch_manus_data(token: str) -> ManusQuotaResult:
     credits_data, err = _rpc_post_json("GetAvailableCredits", token)
     if not credits_data or not isinstance(credits_data, dict):
@@ -201,6 +273,7 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
             user_name="",
             email="",
             updated_at=time.time(),
+            monthly_resets_at=None,
             error_message=err or "Query failed: please check Manus login",
             is_configured=True,
         )
@@ -224,6 +297,7 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
     membership = str(user_data.get("membershipVersion", "pro") or "pro")
     name = str(user_data.get("displayname", "") or user_data.get("nickname", "") or "")
     email = str(user_data.get("email", "") or "")
+    monthly_resets_at = _compute_monthly_reset_ts(user_data, credits_data)
 
     return ManusQuotaResult(
         is_available=True,
@@ -240,6 +314,7 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
         user_name=name,
         email=email,
         updated_at=time.time(),
+        monthly_resets_at=monthly_resets_at,
         error_message=None,
         is_configured=True,
     )

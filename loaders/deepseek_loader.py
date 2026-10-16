@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -22,6 +24,16 @@ _TIMEOUT_SECONDS = 8.0
 _CACHED_RESULT: DeepSeekQuotaResult | None = None
 _LAST_FETCH_TIME: float = 0.0
 _CACHE_TTL_SECONDS: float = 30.0
+
+
+def _get_ssl_context() -> ssl.SSLContext | None:
+    try:
+        ctx = ssl.create_default_context()
+        if os.path.exists("/etc/ssl/cert.pem"):
+            ctx.load_verify_locations(cafile="/etc/ssl/cert.pem")
+        return ctx
+    except Exception:
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +170,6 @@ def _fetch_balance(api_key: str, base_url: str) -> DeepSeekQuotaResult:
 
 def _http_get_json(url: str, headers: dict[str, str]) -> Any:
     req = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
+    with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS, context=_get_ssl_context()) as resp:
         body = resp.read().decode("utf-8")
         return json.loads(body)
