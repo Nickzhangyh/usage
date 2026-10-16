@@ -185,7 +185,7 @@ def setup_fsevents(delegate: Any) -> Any:
         rl = _cf_lib.CFRunLoopGetCurrent()
         mode = _cf_lib.CFStringCreateWithCString(
             None,
-            b"kCFRunLoopDefaultMode",
+            b"kCFRunLoopCommonModes",
             _kCFStringEncodingUTF8,
         )
         _cs_lib.FSEventStreamScheduleWithRunLoop(stream, rl, mode)

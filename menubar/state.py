@@ -41,7 +41,7 @@ from usage_common.time_utils import parse_iso8601_utc_or_raise
 if TYPE_CHECKING:
     from panels.base import Panel as UsagePanel
 
-FILE_EVENT_REFRESH_MIN_INTERVAL_S = 30.0
+FILE_EVENT_REFRESH_MIN_INTERVAL_S = 3.0
 HISTORY_FULL_SCAN_INTERVAL_S = 15 * 60.0
 
 

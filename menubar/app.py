@@ -203,7 +203,7 @@ __all__ = [
 ]
 
 UPDATE_ALERT_BODY_LIMIT = 2000
-SLOW_POLL_INTERVAL_S = 300.0
+SLOW_POLL_INTERVAL_S = 30.0
 
 logger = logging.getLogger(__name__)
 
@@ -948,15 +948,15 @@ class AppDelegate(NSObject):
             self._last_file_event_refresh_started_at = now
             self._refresh(queue_if_busy=True)
         elif decision.trailing_delay is not None:
-            self._file_event_refresh_timer = (
-                NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-                    decision.trailing_delay,
-                    self,
-                    "refreshFromTrailingFileEvent:",
-                    None,
-                    False,
-                )
+            timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+                decision.trailing_delay,
+                self,
+                "refreshFromTrailingFileEvent:",
+                None,
+                False,
             )
+            NSRunLoop.currentRunLoop().addTimer_forMode_(timer, NSRunLoopCommonModes)
+            self._file_event_refresh_timer = timer
 
     def refreshFromTrailingFileEvent_(self, _sender: Any) -> None:
         self._file_event_refresh_timer = None
@@ -1033,11 +1033,7 @@ class AppDelegate(NSObject):
                 mock=self.mock,
                 language=self.language,
                 burn_rate_trackers=self.burn_rate_trackers,
-                jsonl_candidates=(
-                    None
-                    if history_scan is None
-                    else history_scan.codex_rate_limit_candidates
-                ),
+                jsonl_candidates=None,
             )
         except Exception:
             if os.environ.get("USAGE_DEBUG") == "1":
