@@ -11,8 +11,11 @@ import json
 import logging
 import os
 import sqlite3
+import ssl
 import sys
 import time
+import urllib.error
+import urllib.request
 from collections import OrderedDict
 from collections.abc import Iterable
 from contextlib import closing
@@ -435,10 +438,119 @@ def _read_session_file_info(path: Path) -> _SessionFileInfo:
     return info
 
 
+_LIVE_CODEX_CACHE: CodexRateLimits | None = None
+_LIVE_CODEX_LAST_FETCH: float = 0.0
+_LIVE_CODEX_TTL: float = 30.0
+
+
+def _load_live_chatgpt_rate_limits() -> CodexRateLimits | None:
+    global _LIVE_CODEX_CACHE, _LIVE_CODEX_LAST_FETCH
+    now = time.time()
+    if _LIVE_CODEX_CACHE is not None and (now - _LIVE_CODEX_LAST_FETCH) < _LIVE_CODEX_TTL:
+        return _LIVE_CODEX_CACHE
+
+    auth_file = codex_home() / "auth.json"
+    if not auth_file.is_file():
+        return _LIVE_CODEX_CACHE
+
+    try:
+        with open(auth_file, "r", encoding="utf-8") as f:
+            auth_data = json.load(f)
+    except Exception:
+        return _LIVE_CODEX_CACHE
+
+    tokens = auth_data.get("tokens", {})
+    access_token = tokens.get("access_token")
+    if not access_token:
+        return _LIVE_CODEX_CACHE
+    account_id = tokens.get("account_id")
+
+    ctx = ssl.create_default_context()
+    if os.path.exists("/etc/ssl/cert.pem"):
+        try:
+            ctx.load_verify_locations(cafile="/etc/ssl/cert.pem")
+        except Exception:
+            pass
+
+    url = "https://chatgpt.com/backend-api/wham/usage"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Codex/1.0.0 Chrome/120.0.0.0 Safari/537.36",
+        "OAI-App-Brand": "chatgpt",
+    }
+    if account_id:
+        headers["ChatGPT-Account-ID"] = account_id
+
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=5.0, context=ctx) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        if os.environ.get("USAGE_DEBUG") == "1":
+            logger.debug("live chatgpt rate limits query failed: %s", exc)
+        return _LIVE_CODEX_CACHE
+
+    rl = data.get("rate_limit", {})
+    pw = rl.get("primary_window")
+    sw = rl.get("secondary_window")
+    credits = data.get("credits", {})
+
+    five_pct: float | None = None
+    five_reset: float | None = None
+    five_win: float | None = None
+    seven_pct: float | None = None
+    seven_reset: float | None = None
+    seven_win: float | None = None
+
+    for w in (pw, sw):
+        if not isinstance(w, dict):
+            continue
+        secs = float(w.get("limit_window_seconds", 0) or 0)
+        pct = float(w.get("used_percent", 0) or 0)
+        reset = float(w.get("reset_at", 0) or 0)
+        mins = secs / 60.0
+        if secs <= 36000.0:  # <= 10 hours
+            five_pct = pct
+            five_reset = reset if reset > 0 else None
+            five_win = mins
+        else:
+            seven_pct = pct
+            seven_reset = reset if reset > 0 else None
+            seven_win = mins
+
+    model = "gpt-5"
+    model_usage = data.get("model_usage", {})
+    if isinstance(model_usage, dict) and model_usage:
+        model = next(iter(model_usage.keys()))
+
+    result = CodexRateLimits(
+        five_hour_pct=five_pct,
+        five_hour_resets_at=five_reset,
+        seven_day_pct=seven_pct,
+        seven_day_resets_at=seven_reset,
+        five_hour_window_minutes=five_win,
+        seven_day_window_minutes=seven_win,
+        model=model,
+        updated_at=datetime.now(UTC).isoformat(),
+        has_credits=credits.get("has_credits") is True,
+        credit_balance=str(credits.get("balance", "0")),
+        credits_unlimited=credits.get("unlimited") is True,
+        limit_id="codex",
+    )
+
+    _LIVE_CODEX_CACHE = result
+    _LIVE_CODEX_LAST_FETCH = now
+    return result
+
+
 def load_rate_limits(
     *,
     jsonl_candidates: Iterable[tuple[Path, float]] | None = None,
 ) -> CodexRateLimits | None:
+    live_limits = _load_live_chatgpt_rate_limits()
+    if live_limits is not None:
+        return live_limits
+
     sqlite_limits = _load_sqlite_rate_limits()
     jsonl_limits = _load_jsonl_rate_limits(jsonl_candidates=jsonl_candidates)
     if sqlite_limits is None:
