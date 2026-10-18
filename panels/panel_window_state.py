@@ -12,7 +12,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 if sys.platform == "darwin":
-    from Foundation import NSUserDefaults
+    try:
+        from Foundation import NSUserDefaults
+    except ImportError:
+        NSUserDefaults = None
 else:
     NSUserDefaults = None
 
@@ -100,9 +103,19 @@ def load_panel_window_top_left(defaults: Any | None = None) -> Origin | None:
         or not isinstance(y, int | float)
         or not math.isfinite(float(x))
         or not math.isfinite(float(y))
+        or (float(x) <= 0.0 and float(y) <= 600.0)
     ):
         return None
     return (float(x), float(y))
+
+
+def clear_panel_window_position(defaults: Any | None = None) -> None:
+    store = defaults
+    if store is None:
+        assert NSUserDefaults is not None
+        store = NSUserDefaults.standardUserDefaults()
+    store.removeObjectForKey_(PANEL_WINDOW_TOP_LEFT_DEFAULTS_KEY)
+    store.removeObjectForKey_(PANEL_WINDOW_ORIGIN_DEFAULTS_KEY)
 
 
 def save_panel_content_height(

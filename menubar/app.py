@@ -485,7 +485,8 @@ class AppDelegate(NSObject):
 
     def windowWillClose_(self, notification: Any) -> None:
         if notification.object() is self.popover:
-            self._save_panel_window_top_left()
+            if self._panel_window_is_visible():
+                self._save_panel_window_top_left()
             self._panel_window_did_hide()
 
     def refreshNow_(self, sender: Any) -> None:
@@ -884,9 +885,30 @@ class AppDelegate(NSObject):
     def _save_panel_window_top_left(self) -> None:
         if not hasattr(self, "popover") or self.popover is None:
             return
+        is_visible = (
+            self._panel_window_is_visible()
+            if hasattr(self, "_panel_window_is_visible")
+            else True
+        )
+        if not is_visible:
+            return
         frame = self.popover.frame()
-        top_left = (float(frame.origin.x), float(frame.origin.y) + float(frame.size.height))
+        origin = frame.origin() if callable(getattr(frame, "origin", None)) else frame.origin
+        size = frame.size() if callable(getattr(frame, "size", None)) else frame.size
+        origin_x = float(getattr(origin, "x", origin[0] if isinstance(origin, (list, tuple)) else 0.0))
+        origin_y = float(getattr(origin, "y", origin[1] if isinstance(origin, (list, tuple)) else 0.0))
+        size_h = float(getattr(size, "height", size[1] if isinstance(size, (list, tuple)) else 0.0))
+        if origin_x <= 0.0 and origin_y <= 0.0:
+            return
+        top_left = (origin_x, origin_y + size_h)
         save_panel_window_top_left(top_left)
+
+    def resetPanelPosition_(self, sender: Any = None) -> None:
+        panel_window_state.clear_panel_window_position()
+        if hasattr(self, "status_item") and self.status_item is not None:
+            button = self.status_item.button()
+            if button is not None and self._panel_window_is_visible():
+                self._show_popover_from_button(button)
 
     def _mark_switch_menu_action(self) -> None:
         self._switch_menu_action_taken = True

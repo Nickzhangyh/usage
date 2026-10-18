@@ -65,6 +65,9 @@ def build_switch_menu(app: _SwitchMenuApp, sender: Any) -> None:
     menu.addItem_(
         build_menu_item(app.language, "panel_ai_daily", "toggleAiDaily:", target=app)
     )
+    menu.addItem_(
+        build_menu_item(app.language, "reset_panel_position", "resetPanelPosition:", target=app)
+    )
     menu.addItem_(NSMenuItem.separatorItem())
     # Panel themes live in a submenu so the menu stays short — one "面板主題 ▸"
     # row that expands on demand instead of fourteen inline rows.
