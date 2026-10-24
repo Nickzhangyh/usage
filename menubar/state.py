@@ -23,6 +23,7 @@ from loaders.claude_paths import claude_config_dirs
 from loaders.codex_paths import codex_home
 from loaders.history_loader import UsageEntry, load_entries
 from menubar.prefs import (
+    _deepseek_menubar_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
     _hide_deepseek_enabled,
@@ -154,6 +155,7 @@ class PopoverState:
     hide_grok: bool = True
     hide_deepseek: bool = False
     hide_manus: bool = False
+    show_deepseek_menubar: bool = False
     hide_projects: bool = False
     hide_footer: bool = False
     codex_stale: CodexStaleState | None = None
@@ -834,6 +836,7 @@ def build_popover_state(
     hide_grok: bool,
     hide_deepseek: bool = False,
     hide_manus: bool = False,
+    show_deepseek_menubar: bool = False,
     hide_projects: bool = False,
     hide_footer: bool = False,
     codex_stale: CodexStaleState | None,
@@ -962,6 +965,7 @@ def build_popover_state(
         hide_grok=hide_grok,
         hide_deepseek=hide_deepseek,
         hide_manus=hide_manus,
+        show_deepseek_menubar=show_deepseek_menubar,
         hide_projects=hide_projects,
         hide_footer=hide_footer,
         codex_stale=codex_stale,
@@ -1163,6 +1167,7 @@ def _empty_state(language: str = "en") -> PopoverState:
         hide_grok=True,
         hide_deepseek=_hide_deepseek_enabled(),
         hide_manus=_hide_manus_enabled(),
+        show_deepseek_menubar=_deepseek_menubar_enabled(),
         card_order=_quota_card_order(),
     )
 

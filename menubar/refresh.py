@@ -29,6 +29,7 @@ from menubar import state as menubar_state
 from menubar.prefs import (
     _deepseek_api_key,
     _deepseek_base_url,
+    _deepseek_menubar_enabled,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
@@ -250,6 +251,7 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             hide_grok=hide_grok,
             hide_deepseek=hide_deepseek,
             hide_manus=hide_manus,
+            show_deepseek_menubar=_deepseek_menubar_enabled(),
             hide_projects=hide_projects,
             hide_footer=hide_footer,
             codex_stale=codex_stale,
@@ -308,6 +310,7 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
         state.hide_grok = hide_grok
         state.hide_deepseek = hide_deepseek
         state.hide_manus = hide_manus
+        state.show_deepseek_menubar = _deepseek_menubar_enabled()
         state.card_order = card_order
 
     return {

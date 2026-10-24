@@ -560,7 +560,8 @@
     "manus_free_credits": "贈送積分",
     "credits_unit": "點",
     "hide_projects": "專案用量",
-    "hide_footer": "底部狀態列"
+    "hide_footer": "底部狀態列",
+    "show_deepseek_in_menubar": "在選單列顯示 DeepSeek 金額"
   },
   "en": {
     "panel_default_name": "Default",
@@ -1123,7 +1124,8 @@
     "manus_free_credits": "Free Credits",
     "credits_unit": "pts",
     "hide_projects": "Project Usage",
-    "hide_footer": "Footer Status"
+    "hide_footer": "Footer Status",
+    "show_deepseek_in_menubar": "Show DeepSeek in Menu Bar"
   },
   "zh-CN": {
     "panel_default_name": "默认",
@@ -1686,7 +1688,8 @@
     "manus_free_credits": "赠送积分",
     "credits_unit": "点",
     "hide_projects": "项目用量",
-    "hide_footer": "底部状态栏"
+    "hide_footer": "底部状态栏",
+    "show_deepseek_in_menubar": "在任务栏显示 DeepSeek 金额"
   },
   "ja": {
     "panel_default_name": "デフォルト",
@@ -2249,7 +2252,8 @@
     "manus_free_credits": "付与ポイント",
     "credits_unit": "pt",
     "hide_projects": "プロジェクト利用量",
-    "hide_footer": "フッター"
+    "hide_footer": "フッター",
+    "show_deepseek_in_menubar": "メニューバーにDeepSeek残高を表示"
   },
   "ko": {
     "panel_default_name": "기본",
@@ -2812,6 +2816,7 @@
     "manus_free_credits": "무료 크레딧",
     "credits_unit": "pt",
     "hide_projects": "프로젝트 사용량",
-    "hide_footer": "하단 상태 표시줄"
+    "hide_footer": "하단 상태 표시줄",
+    "show_deepseek_in_menubar": "메뉴 막대에 DeepSeek 잔액 표시"
   }
 }

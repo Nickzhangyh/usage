@@ -136,7 +136,12 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         title.appendAttributedString_(_menubar_icon_attachment_string(_grok_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {grok_percent}"))
     deepseek_data = state.deepseek
-    deepseek_visible = not state.hide_deepseek and deepseek_data and deepseek_data.get("configured")
+    deepseek_visible = (
+        not state.hide_deepseek
+        and getattr(state, "show_deepseek_menubar", False)
+        and deepseek_data
+        and deepseek_data.get("configured")
+    )
     if deepseek_visible:
         int_bal = int(round(float(deepseek_data.get("totalBalance", 0.0) or 0.0)))
         sym = deepseek_data.get("currencySymbol", "¥")
@@ -205,7 +210,12 @@ def _compose_title(app: _TitleApp, state: PopoverState) -> str:
     if not state.hide_grok and state.grok_weekly.percent is not None:
         grok_rem = max(0.0, 100.0 - state.grok_weekly.percent)
         parts.append(_format_menubar_percent(grok_rem))
-    if not state.hide_deepseek and state.deepseek and state.deepseek.get("configured"):
+    if (
+        not state.hide_deepseek
+        and getattr(state, "show_deepseek_menubar", False)
+        and state.deepseek
+        and state.deepseek.get("configured")
+    ):
         int_bal = int(round(float(state.deepseek.get("totalBalance", 0.0) or 0.0)))
         sym = state.deepseek.get("currencySymbol", "¥")
         parts.append(f"{sym}{int_bal}")

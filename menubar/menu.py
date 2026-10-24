@@ -13,6 +13,7 @@ from AppKit import NSMakePoint, NSMenu, NSMenuItem
 from i18n import _t
 from installer import login_item
 from menubar.prefs import (
+    _deepseek_menubar_enabled,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
@@ -146,6 +147,12 @@ def build_switch_menu(app: _SwitchMenuApp, sender: Any) -> None:
     menu.addItem_(
         build_menu_item(
             app.language, "configure_deepseek", "configureDeepSeek:", target=app,
+        )
+    )
+    menu.addItem_(
+        build_menu_item(
+            app.language, "show_deepseek_in_menubar", "toggleShowDeepSeekMenubar:", target=app,
+            state=_deepseek_menubar_enabled(),
         )
     )
     menu.addItem_(

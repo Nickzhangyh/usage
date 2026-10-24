@@ -89,6 +89,7 @@ from menubar.prefs import (
     _auto_update_check_enabled,
     _deepseek_api_key,
     _deepseek_base_url,
+    _deepseek_menubar_enabled,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
@@ -613,15 +614,27 @@ class AppDelegate(NSObject):
             sender, "hide_deepseek_section", "hide_deepseek", _hide_deepseek_enabled
         )
 
+    def toggleShowDeepSeekMenubar_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        from menubar.prefs import _deepseek_menubar_enabled, _save_deepseek_menubar_enabled
+        new_val = not _deepseek_menubar_enabled()
+        _save_deepseek_menubar_enabled(new_val)
+        if hasattr(sender, "setState_"):
+            sender.setState_(1 if new_val else 0)
+        self.latest_state.show_deepseek_menubar = new_val
+        menubar_title._set_button_title(self, self.latest_state)
+
     def configureDeepSeek_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
         from AppKit import (
             NSAlert,
             NSApp,
+            NSButton,
             NSMakeRect,
             NSTextField,
             NSView,
         )
+        from menubar.prefs import _deepseek_menubar_enabled, _save_deepseek_menubar_enabled
 
         alert = NSAlert.alloc().init()
         alert.setMessageText_(_t(self.language, "configure_deepseek_title"))
@@ -629,25 +642,31 @@ class AppDelegate(NSObject):
         alert.addButtonWithTitle_(_t(self.language, "save"))
         alert.addButtonWithTitle_(_t(self.language, "cancel"))
 
-        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 95))
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 125))
 
         key_label = NSTextField.labelWithString_(_t(self.language, "deepseek_api_key_prompt"))
-        key_label.setFrame_(NSMakeRect(0, 72, 320, 18))
+        key_label.setFrame_(NSMakeRect(0, 102, 320, 18))
         container.addSubview_(key_label)
 
-        key_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 48, 320, 22))
+        key_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 78, 320, 22))
         key_input.setStringValue_(_deepseek_api_key())
         key_input.setPlaceholderString_("sk-...")
         container.addSubview_(key_input)
 
         url_label = NSTextField.labelWithString_(_t(self.language, "deepseek_base_url_prompt"))
-        url_label.setFrame_(NSMakeRect(0, 24, 320, 18))
+        url_label.setFrame_(NSMakeRect(0, 54, 320, 18))
         container.addSubview_(url_label)
 
-        url_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 22))
+        url_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 30, 320, 22))
         url_input.setStringValue_(_deepseek_base_url())
         url_input.setPlaceholderString_("https://api.deepseek.com")
         container.addSubview_(url_input)
+
+        menubar_checkbox = NSButton.alloc().initWithFrame_(NSMakeRect(0, 2, 320, 22))
+        menubar_checkbox.setButtonType_(3)  # NSSwitchButton / Checkbox
+        menubar_checkbox.setTitle_(_t(self.language, "show_deepseek_in_menubar"))
+        menubar_checkbox.setState_(1 if _deepseek_menubar_enabled() else 0)
+        container.addSubview_(menubar_checkbox)
 
         alert.setAccessoryView_(container)
         alert.window().setInitialFirstResponder_(key_input)
@@ -658,6 +677,10 @@ class AppDelegate(NSObject):
             new_key = str(key_input.stringValue()).strip()
             new_url = str(url_input.stringValue()).strip()
             _save_deepseek_config(new_key, new_url)
+            show_mb = bool(menubar_checkbox.state() == 1)
+            _save_deepseek_menubar_enabled(show_mb)
+            self.latest_state.show_deepseek_menubar = show_mb
+            menubar_title._set_button_title(self, self.latest_state)
             self._refresh()
 
     def toggleHideManus_(self, sender: Any) -> None:

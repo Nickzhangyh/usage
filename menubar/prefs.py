@@ -92,6 +92,17 @@ def _save_deepseek_config(api_key: str, base_url: str) -> None:
     _save_preferences(prefs)
 
 
+def _deepseek_menubar_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("show_deepseek_in_menubar") is True
+
+
+def _save_deepseek_menubar_enabled(enabled: bool) -> None:
+    prefs = _load_preferences()
+    prefs["show_deepseek_in_menubar"] = bool(enabled)
+    _save_preferences(prefs)
+
+
 def _hide_manus_enabled(prefs: Mapping[str, object] | None = None) -> bool:
     data = _resolved_preferences(prefs)
     return data.get("hide_manus_section") is True
