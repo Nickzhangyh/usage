@@ -58,6 +58,11 @@ class ManusQuotaResult:
     monthly_resets_at: float | None = None
     error_message: str | None = None
     is_configured: bool = True
+    secondary_effective_credits: int | None = None
+    secondary_membership_version: str = ""
+    secondary_user_name: str = ""
+    secondary_monthly_resets_at: float | None = None
+    secondary_error_message: str | None = None
 
 
 def _read_local_session_cookie() -> str | None:
@@ -115,42 +120,117 @@ def _read_local_session_cookie() -> str | None:
 
 def load_quota(
     api_token: str | None = None,
+    web_token: str | None = None,
     force_refresh: bool = False,
 ) -> ManusQuotaResult | None:
     global _CACHED_RESULT, _LAST_FETCH_TIME
 
-    token = (api_token or "").strip()
-    if not token:
-        token = _read_local_session_cookie() or ""
+    token1 = (api_token or "").strip()
+    token2 = (web_token or "").strip()
 
-    if not token:
+    if not token2 and token1 and ("," in token1 or "\n" in token1):
+        parts = [p.strip() for p in token1.replace("\n", ",").split(",") if p.strip()]
+        if len(parts) >= 2:
+            token1 = parts[0]
+            token2 = parts[1]
+
+    if not token1:
+        token1 = _read_local_session_cookie() or ""
+
+    if not token1 and not token2:
         return None
 
     now = time.time()
     if not force_refresh and _CACHED_RESULT is not None and (now - _LAST_FETCH_TIME) < _CACHE_TTL_SECONDS:
         return _CACHED_RESULT
 
-    result = _fetch_manus_data(token)
+    res1: ManusQuotaResult | None = None
+    if token1:
+        res1 = _fetch_manus_data(token1)
 
-    # Resilient caching: if network or RPC fails but we have a valid previous result,
-    # preserve the cached quota so the menu bar doesn't flicker or lose credits!
-    if result is not None and result.is_available:
-        _CACHED_RESULT = result
+    res2: ManusQuotaResult | None = None
+    if token2:
+        res2 = _fetch_manus_data(token2)
+
+    if res1 is None and res2 is None:
+        return None
+
+    merged_res: ManusQuotaResult | None = None
+    if res1 is not None and res2 is not None:
+        merged_res = ManusQuotaResult(
+            is_available=res1.is_available or res2.is_available,
+            effective_credits=res1.effective_credits,
+            total_credits=res1.total_credits,
+            periodic_credits=res1.periodic_credits,
+            pro_monthly_credits=res1.pro_monthly_credits,
+            free_credits=res1.free_credits,
+            refresh_credits=res1.refresh_credits,
+            max_refresh_credits=res1.max_refresh_credits,
+            next_refresh_time=res1.next_refresh_time,
+            refresh_interval=res1.refresh_interval,
+            membership_version=res1.membership_version,
+            user_name=res1.user_name,
+            email=res1.email,
+            updated_at=now,
+            monthly_resets_at=res1.monthly_resets_at,
+            error_message=res1.error_message if not res1.is_available else None,
+            is_configured=True,
+            secondary_effective_credits=res2.effective_credits if res2.is_available else None,
+            secondary_membership_version=res2.membership_version if res2.is_available else "",
+            secondary_user_name=res2.user_name if res2.is_available else "",
+            secondary_monthly_resets_at=res2.monthly_resets_at if res2.is_available else None,
+            secondary_error_message=res2.error_message if not res2.is_available else None,
+        )
+    elif res1 is not None:
+        merged_res = res1
+    else:
+        merged_res = res2
+
+    assert merged_res is not None
+    if merged_res.is_available:
+        _CACHED_RESULT = merged_res
         _LAST_FETCH_TIME = now
-        return result
+        return merged_res
 
     if _CACHED_RESULT is not None and _CACHED_RESULT.is_available:
-        # Transient failure: keep last known good credits
         logger.warning(
             "Manus quota fetch failed (%s); keeping cached quota of %d credits",
-            result.error_message if result else "unknown",
+            merged_res.error_message or "unknown",
             _CACHED_RESULT.effective_credits,
         )
         return _CACHED_RESULT
 
-    _CACHED_RESULT = result
+    _CACHED_RESULT = merged_res
     _LAST_FETCH_TIME = now
-    return result
+    return merged_res
+
+
+def _rest_get_json(endpoint: str, token: str) -> tuple[dict[str, Any] | None, str | None]:
+    for host in ("api.manus.im", "api.manus.ai"):
+        url = f"https://{host}/{endpoint}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Manus/1.0.0 Chrome/120.0.0.0 Safari/537.36",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS, context=_get_ssl_context()) as resp:
+                body = resp.read().decode("utf-8")
+                parsed = json.loads(body)
+                if isinstance(parsed, dict):
+                    data = parsed.get("data") if isinstance(parsed.get("data"), dict) else parsed
+                    return data, None
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                return None, "API Key 或 Token 无效/已过期"
+            logger.debug("REST GET %s returned %d", url, exc.code)
+        except Exception as exc:
+            logger.debug("REST GET %s failed: %s", url, exc)
+    return None, "API 请求失败"
 
 
 def _rpc_post_json(method: str, token: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -258,6 +338,17 @@ def _compute_monthly_reset_ts(user_data: dict[str, Any], credits_data: dict[str,
 def _fetch_manus_data(token: str) -> ManusQuotaResult:
     credits_data, err = _rpc_post_json("GetAvailableCredits", token)
     if not credits_data or not isinstance(credits_data, dict):
+        rest_data, rest_err = _rest_get_json("v2/usage.availableCredits", token)
+        if rest_data and isinstance(rest_data, dict):
+            credits_data = rest_data
+            err = None
+        else:
+            rest_data, _ = _rest_get_json("v1/user/credits", token)
+            if rest_data and isinstance(rest_data, dict):
+                credits_data = rest_data
+                err = None
+
+    if not credits_data or not isinstance(credits_data, dict):
         return ManusQuotaResult(
             is_available=False,
             effective_credits=0,
@@ -274,7 +365,7 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
             email="",
             updated_at=time.time(),
             monthly_resets_at=None,
-            error_message=err or "Query failed: please check Manus login",
+            error_message=err or "Query failed: please check Manus login or API Key",
             is_configured=True,
         )
 
@@ -282,14 +373,14 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
     user_data, _ = _rpc_post_json("UserInfo", token)
     user_data = user_data or {}
 
-    total = int(credits_data.get("totalCredits", 0) or 0)
-    periodic = int(credits_data.get("periodicCredits", 0) or 0)
-    pro_monthly = int(credits_data.get("proMonthlyCredits", 0) or 0)
-    free = int(credits_data.get("freeCredits", 0) or 0)
-    refresh = int(credits_data.get("refreshCredits", 0) or 0)
-    max_refresh = int(credits_data.get("maxRefreshCredits", 0) or 0)
-    next_refresh = str(credits_data.get("nextRefreshTime", "") or "")
-    interval = str(credits_data.get("refreshInterval", "daily") or "daily")
+    total = int(credits_data.get("total_credits") or credits_data.get("totalCredits") or 0)
+    periodic = int(credits_data.get("periodic_credits") or credits_data.get("periodicCredits") or 0)
+    pro_monthly = int(credits_data.get("pro_monthly_credits") or credits_data.get("proMonthlyCredits") or 0)
+    free = int(credits_data.get("free_credits") or credits_data.get("freeCredits") or 0)
+    refresh = int(credits_data.get("refresh_credits") or credits_data.get("refreshCredits") or 0)
+    max_refresh = int(credits_data.get("max_refresh_credits") or credits_data.get("maxRefreshCredits") or 0)
+    next_refresh = str(credits_data.get("next_refresh_time") or credits_data.get("nextRefreshTime") or "")
+    interval = str(credits_data.get("refresh_interval") or credits_data.get("refreshInterval") or "daily")
 
     # Formula matching Manus frontend: effective credits = total - refreshCredits
     effective = max(0, total - refresh)

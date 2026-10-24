@@ -38,6 +38,7 @@ from menubar.prefs import (
     _hide_manus_enabled,
     _hide_projects_enabled,
     _manus_token,
+    _manus_web_token,
     _quota_card_order,
 )
 from quota.burn_rate import BurnRateTracker
@@ -199,7 +200,8 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
     manus_payload = None
     try:
         m_token = _manus_token()
-        m_result = manus_loader.load_quota(m_token)
+        m_web_token = _manus_web_token()
+        m_result = manus_loader.load_quota(m_token, m_web_token)
         if m_result is not None:
             manus_payload = adapter_manus.format_manus_card(m_result, app.language)
     except Exception:

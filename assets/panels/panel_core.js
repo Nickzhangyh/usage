@@ -512,7 +512,12 @@
 
       const creditsEl = card.querySelector('[data-manus-credits]');
       if (creditsEl) {
-        creditsEl.textContent = (manus.formattedCredits || "--") + " " + (t("credits_unit") || "点");
+        if (manus.secondaryFormattedCredits) {
+          const p = manus.primaryCredits != null ? Number(manus.primaryCredits).toLocaleString() : (manus.formattedCredits || "--");
+          creditsEl.textContent = `${p} / ${manus.secondaryFormattedCredits} ${t("credits_unit") || "点"}`;
+        } else {
+          creditsEl.textContent = (manus.formattedCredits || "--") + " " + (t("credits_unit") || "点");
+        }
       }
 
       const planEl = card.querySelector('[data-manus-plan]');
@@ -531,6 +536,13 @@
       if (manus.errorMessage) {
         resetEl.textContent = manus.errorMessage;
         resetEl.style.color = "#f87171";
+        resetEl.style.display = "";
+      } else if (manus.secondaryFormattedCredits) {
+        const p = manus.primaryCredits != null ? Number(manus.primaryCredits).toLocaleString() : "--";
+        let multiInfo = `桌面端: ${p} 点 · 网页端: ${manus.secondaryFormattedCredits} 点`;
+        if (manus.resetText) multiInfo += ` · ${manus.resetText}`;
+        resetEl.textContent = multiInfo;
+        resetEl.style.color = "";
         resetEl.style.display = "";
       } else if (manus.resetText) {
         resetEl.textContent = manus.resetText;

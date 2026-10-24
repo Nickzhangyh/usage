@@ -98,6 +98,7 @@ from menubar.prefs import (
     _hide_manus_enabled,
     _hide_projects_enabled,
     _manus_token,
+    _manus_web_token,
     _quota_card_order,
     _quota_notification_thresholds,
     _quota_notifications_enabled,
@@ -680,25 +681,35 @@ class AppDelegate(NSObject):
         alert.addButtonWithTitle_(_t(self.language, "save"))
         alert.addButtonWithTitle_(_t(self.language, "cancel"))
 
-        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 50))
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 110))
 
         token_label = NSTextField.labelWithString_(_t(self.language, "manus_token_prompt"))
-        token_label.setFrame_(NSMakeRect(0, 26, 320, 18))
+        token_label.setFrame_(NSMakeRect(0, 84, 320, 18))
         container.addSubview_(token_label)
 
-        token_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 2, 320, 22))
+        token_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 60, 320, 22))
         token_input.setStringValue_(_manus_token())
         token_input.setPlaceholderString_(_t(self.language, "manus_token_placeholder"))
         container.addSubview_(token_input)
 
+        token2_label = NSTextField.labelWithString_(_t(self.language, "manus_token2_prompt"))
+        token2_label.setFrame_(NSMakeRect(0, 28, 320, 18))
+        container.addSubview_(token2_label)
+
+        token2_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 4, 320, 22))
+        token2_input.setStringValue_(_manus_web_token())
+        token2_input.setPlaceholderString_(_t(self.language, "manus_token2_placeholder"))
+        container.addSubview_(token2_input)
+
         alert.setAccessoryView_(container)
-        alert.window().setInitialFirstResponder_(token_input)
+        alert.window().setInitialFirstResponder_(token2_input if not _manus_web_token() else token_input)
 
         NSApp.activateIgnoringOtherApps_(True)
         response = alert.runModal()
         if response == 1000:
             new_token = str(token_input.stringValue()).strip()
-            _save_manus_config(new_token)
+            new_web_token = str(token2_input.stringValue()).strip()
+            _save_manus_config(new_token, new_web_token)
             self._refresh()
 
     def toggleHideProjects_(self, sender: Any) -> None:

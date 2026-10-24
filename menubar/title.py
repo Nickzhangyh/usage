@@ -15,6 +15,7 @@ from AppKit import (
     NSFont,
     NSFontAttributeName,
     NSFontWeightBold,
+    NSKernAttributeName,
     NSMutableAttributedString,
 )
 
@@ -51,13 +52,32 @@ def _menubar_font() -> Any:
     return _MENUBAR_FONT
 
 
+def _format_compact_credits(credits: int | float | None) -> str:
+    if credits is None:
+        return "--"
+    val = float(credits)
+    if val >= 1000000:
+        return f"{val / 1000000.0:.1f}m"
+    elif val >= 1000:
+        return f"{val / 1000.0:.1f}k"
+    elif val > 0:
+        return f"{val / 1000.0:.1f}k"
+    else:
+        return "0"
+
+
 def _menubar_text_string(app: _TitleApp, text: str) -> Any:
     cached = app._menubar_text_cache.get(text)
     if cached is not None:
         return cached
+    attrs: dict[Any, Any] = {
+        NSFontAttributeName: _menubar_font(),
+    }
+    if NSKernAttributeName is not None:
+        attrs[NSKernAttributeName] = -0.3
     attributed = NSAttributedString.alloc().initWithString_attributes_(
         text,
-        {NSFontAttributeName: _menubar_font()},
+        attrs,
     )
     app._menubar_text_cache[text] = attributed
     return attributed
@@ -126,10 +146,18 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         title.appendAttributedString_(_menubar_icon_attachment_string(_deepseek_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, ds_text))
     manus_data = state.manus
-    manus_visible = not state.hide_manus and manus_data and (manus_data.get("available") or int(manus_data.get("effectiveCredits", 0) or 0) > 0)
+    manus_visible = not state.hide_manus and manus_data and (
+        manus_data.get("available")
+        or int(manus_data.get("effectiveCredits", 0) or 0) > 0
+        or manus_data.get("secondaryEffectiveCredits") is not None
+    )
     if manus_visible:
-        eff_credits = int(manus_data.get("effectiveCredits", 0) or 0)
-        manus_text = f" {eff_credits}"
+        c1 = int(manus_data.get("effectiveCredits", 0) or 0)
+        c2 = manus_data.get("secondaryEffectiveCredits")
+        if c2 is not None:
+            manus_text = f" {_format_compact_credits(c1)}/{_format_compact_credits(c2)}"
+        else:
+            manus_text = f" {_format_compact_credits(c1)}"
         if title.length() > 0:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_manus_menubar_icon()))
@@ -181,8 +209,16 @@ def _compose_title(app: _TitleApp, state: PopoverState) -> str:
         int_bal = int(round(float(state.deepseek.get("totalBalance", 0.0) or 0.0)))
         sym = state.deepseek.get("currencySymbol", "¥")
         parts.append(f"{sym}{int_bal}")
-    if not state.hide_manus and state.manus and (state.manus.get("available") or int(state.manus.get("effectiveCredits", 0) or 0) > 0):
-        eff_credits = int(state.manus.get("effectiveCredits", 0) or 0)
-        parts.append(str(eff_credits))
+    if not state.hide_manus and state.manus and (
+        state.manus.get("available")
+        or int(state.manus.get("effectiveCredits", 0) or 0) > 0
+        or state.manus.get("secondaryEffectiveCredits") is not None
+    ):
+        c1 = int(state.manus.get("effectiveCredits", 0) or 0)
+        c2 = state.manus.get("secondaryEffectiveCredits")
+        if c2 is not None:
+            parts.append(f"{_format_compact_credits(c1)}/{_format_compact_credits(c2)}")
+        else:
+            parts.append(_format_compact_credits(c1))
     # Both providers hidden: keep a recognizable, clickable status item.
     return " · ".join(parts) if parts else "usage"

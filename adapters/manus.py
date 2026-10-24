@@ -48,11 +48,25 @@ def format_manus_card(result: ManusQuotaResult | None, language: str = "en") -> 
         else:
             reset_text = _t(language, "reset_in", time=format_human_time(seconds_left, language))
 
+    sec_credits = result.secondary_effective_credits
+    sec_formatted = f"{sec_credits:,}" if sec_credits is not None else None
+
+    formatted_display = f"{result.effective_credits:,}"
+    if sec_formatted is not None:
+        formatted_display = f"{result.effective_credits:,} / {sec_formatted}"
+
     return {
         "configured": True,
         "available": result.is_available,
         "effectiveCredits": result.effective_credits,
-        "formattedCredits": f"{result.effective_credits:,}",
+        "formattedCredits": formatted_display,
+        "primaryCredits": result.effective_credits,
+        "secondaryEffectiveCredits": sec_credits,
+        "secondaryFormattedCredits": sec_formatted,
+        "secondaryMembershipVersion": result.secondary_membership_version,
+        "secondaryUserName": result.secondary_user_name,
+        "secondaryMonthlyResetsAt": result.secondary_monthly_resets_at,
+        "secondaryErrorMessage": result.secondary_error_message,
         "totalCredits": result.total_credits,
         "periodicCredits": result.periodic_credits,
         "proMonthlyCredits": result.pro_monthly_credits,

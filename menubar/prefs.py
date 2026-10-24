@@ -103,9 +103,17 @@ def _manus_token(prefs: Mapping[str, object] | None = None) -> str:
     return str(val).strip() if isinstance(val, str) else ""
 
 
-def _save_manus_config(token: str) -> None:
+def _manus_web_token(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("manus_web_token")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _save_manus_config(token: str, web_token: str | None = None) -> None:
     prefs = _load_preferences()
     prefs["manus_token"] = token.strip()
+    if web_token is not None:
+        prefs["manus_web_token"] = web_token.strip()
     _save_preferences(prefs)
 
 
