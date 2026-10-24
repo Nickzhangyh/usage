@@ -146,11 +146,13 @@ def load_quota(
 
     res1: ManusQuotaResult | None = None
     if token1:
-        res1 = _fetch_manus_data(token1)
+        d1 = "manus-zzn" if token1.startswith("sk-") else "manus-nick"
+        res1 = _fetch_manus_data(token1, default_name=d1)
 
     res2: ManusQuotaResult | None = None
     if token2:
-        res2 = _fetch_manus_data(token2)
+        d2 = "manus-zzn" if token2.startswith("sk-") else "manus-nick"
+        res2 = _fetch_manus_data(token2, default_name=d2)
 
     if res1 is None and res2 is None:
         return None
@@ -208,13 +210,17 @@ def load_quota(
 def _rest_get_json(endpoint: str, token: str) -> tuple[dict[str, Any] | None, str | None]:
     for host in ("api.manus.im", "api.manus.ai"):
         url = f"https://{host}/{endpoint}"
+        headers: dict[str, str] = {
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Manus/1.0.0 Chrome/120.0.0.0 Safari/537.36",
+        }
+        if token.startswith("sk-"):
+            headers["x-manus-api-key"] = token
+        else:
+            headers["Authorization"] = f"Bearer {token}"
         req = urllib.request.Request(
             url,
-            headers={
-                "Accept": "application/json",
-                "Authorization": f"Bearer {token}",
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Manus/1.0.0 Chrome/120.0.0.0 Safari/537.36",
-            },
+            headers=headers,
             method="GET",
         )
         try:
@@ -335,18 +341,15 @@ def _compute_monthly_reset_ts(user_data: dict[str, Any], credits_data: dict[str,
     return candidate.timestamp()
 
 
-def _fetch_manus_data(token: str) -> ManusQuotaResult:
-    credits_data, err = _rpc_post_json("GetAvailableCredits", token)
-    if not credits_data or not isinstance(credits_data, dict):
-        rest_data, rest_err = _rest_get_json("v2/usage.availableCredits", token)
-        if rest_data and isinstance(rest_data, dict):
-            credits_data = rest_data
-            err = None
-        else:
-            rest_data, _ = _rest_get_json("v1/user/credits", token)
-            if rest_data and isinstance(rest_data, dict):
-                credits_data = rest_data
-                err = None
+def _fetch_manus_data(token: str, default_name: str = "") -> ManusQuotaResult:
+    credits_data: dict[str, Any] | None = None
+    err: str | None = None
+    if token.startswith("sk-"):
+        credits_data, err = _rest_get_json("v2/usage.availableCredits", token)
+    else:
+        credits_data, err = _rpc_post_json("GetAvailableCredits", token)
+        if not credits_data or not isinstance(credits_data, dict):
+            credits_data, err = _rest_get_json("v2/usage.availableCredits", token)
 
     if not credits_data or not isinstance(credits_data, dict):
         return ManusQuotaResult(
@@ -361,7 +364,7 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
             next_refresh_time="",
             refresh_interval="daily",
             membership_version="pro",
-            user_name="",
+            user_name=default_name,
             email="",
             updated_at=time.time(),
             monthly_resets_at=None,
@@ -370,8 +373,11 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
         )
 
     # Optional user profile
-    user_data, _ = _rpc_post_json("UserInfo", token)
-    user_data = user_data or {}
+    user_data: dict[str, Any] = {}
+    if not token.startswith("sk-"):
+        u_data, _ = _rpc_post_json("UserInfo", token)
+        if u_data and isinstance(u_data, dict):
+            user_data = u_data
 
     total = int(credits_data.get("total_credits") or credits_data.get("totalCredits") or 0)
     periodic = int(credits_data.get("periodic_credits") or credits_data.get("periodicCredits") or 0)
@@ -385,10 +391,19 @@ def _fetch_manus_data(token: str) -> ManusQuotaResult:
     # Formula matching Manus frontend: effective credits = total - refreshCredits
     effective = max(0, total - refresh)
 
-    membership = str(user_data.get("membershipVersion", "pro") or "pro")
-    name = str(user_data.get("displayname", "") or user_data.get("nickname", "") or "")
-    email = str(user_data.get("email", "") or "")
-    monthly_resets_at = _compute_monthly_reset_ts(user_data, credits_data)
+    membership = str(user_data.get("membershipVersion") or ("pro" if pro_monthly > 0 else "free"))
+    name = default_name or str(user_data.get("displayname") or user_data.get("nickname") or "")
+    email = str(user_data.get("email") or "")
+
+    monthly_resets_at: float | None = None
+    period_end = credits_data.get("current_period_end") or credits_data.get("currentPeriodEnd")
+    if period_end:
+        try:
+            monthly_resets_at = float(period_end)
+        except (ValueError, TypeError):
+            pass
+    if monthly_resets_at is None:
+        monthly_resets_at = _compute_monthly_reset_ts(user_data, credits_data)
 
     return ManusQuotaResult(
         is_available=True,

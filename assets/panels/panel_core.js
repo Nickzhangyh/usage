@@ -539,7 +539,9 @@
         resetEl.style.display = "";
       } else if (manus.secondaryFormattedCredits) {
         const p = manus.primaryCredits != null ? Number(manus.primaryCredits).toLocaleString() : "--";
-        let multiInfo = `桌面端: ${p} 点 · 网页端: ${manus.secondaryFormattedCredits} 点`;
+        const n1 = manus.userName || "manus-nick";
+        const n2 = manus.secondaryUserName || "manus-zzn";
+        let multiInfo = `${n1}: ${p} 点 · ${n2}: ${manus.secondaryFormattedCredits} 点`;
         if (manus.resetText) multiInfo += ` · ${manus.resetText}`;
         resetEl.textContent = multiInfo;
         resetEl.style.color = "";
