@@ -115,6 +115,11 @@ def _fetch_balance(api_key: str, base_url: str) -> DuoyuanXQuotaResult:
                 unlimited = bool(info.get("unlimited_quota", False))
                 expires = int(info.get("expires_at", 0) or 0)
 
+                user_quota = info.get("user_quota")
+                if isinstance(user_quota, dict) and "total_available" in user_quota:
+                    avail_q = int(user_quota.get("total_available", avail_q) or 0)
+                    used_q = int(user_quota.get("total_used", used_q) or 0)
+
                 balance = round(avail_q / 500000.0, 2)
                 used = round(used_q / 500000.0, 2)
 
@@ -126,8 +131,8 @@ def _fetch_balance(api_key: str, base_url: str) -> DuoyuanXQuotaResult:
                     total_used_quota=used_q,
                     balance=balance,
                     used=used,
-                    currency="USD",
-                    currency_symbol="$",
+                    currency="CNY",
+                    currency_symbol="¥",
                     unlimited_quota=unlimited,
                     expires_at=expires,
                     updated_at=time.time(),
@@ -142,8 +147,8 @@ def _fetch_balance(api_key: str, base_url: str) -> DuoyuanXQuotaResult:
                     total_used_quota=0,
                     balance=0.0,
                     used=0.0,
-                    currency="USD",
-                    currency_symbol="$",
+                    currency="CNY",
+                    currency_symbol="¥",
                     unlimited_quota=False,
                     expires_at=0,
                     updated_at=time.time(),
@@ -178,8 +183,8 @@ def _fetch_balance(api_key: str, base_url: str) -> DuoyuanXQuotaResult:
                 total_used_quota=int(total_usage * 500000),
                 balance=round(rem, 2),
                 used=round(total_usage, 2),
-                currency="USD",
-                currency_symbol="$",
+                currency="CNY",
+                currency_symbol="¥",
                 unlimited_quota=False,
                 expires_at=int(sub_data.get("access_until", 0) or 0),
                 updated_at=time.time(),
@@ -195,8 +200,8 @@ def _fetch_balance(api_key: str, base_url: str) -> DuoyuanXQuotaResult:
         total_used_quota=0,
         balance=0.0,
         used=0.0,
-        currency="USD",
-        currency_symbol="$",
+        currency="CNY",
+        currency_symbol="¥",
         unlimited_quota=False,
         expires_at=0,
         updated_at=time.time(),

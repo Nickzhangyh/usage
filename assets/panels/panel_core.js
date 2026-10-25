@@ -696,7 +696,7 @@
 
       const usedEl = card.querySelector('[data-duoyuanx-used]');
       if (usedEl) {
-        usedEl.textContent = `${t("duoyuanx_used") || "已用"}: ${duoyuanx.formattedUsed || "$0.00"}`;
+        usedEl.textContent = `${t("duoyuanx_used") || "已用"}: ${duoyuanx.formattedUsed || "¥0.00"}`;
       }
     }
 
