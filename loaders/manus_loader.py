@@ -26,7 +26,7 @@ _TIMEOUT_SECONDS = 12.0
 _CACHED_RESULT: ManusQuotaResult | None = None
 _CACHED_TOKEN: str | None = None
 _LAST_FETCH_TIME: float = 0.0
-_CACHE_TTL_SECONDS: float = 30.0
+_CACHE_TTL_SECONDS: float = 60.0
 
 
 def _get_ssl_context() -> ssl.SSLContext | None:
@@ -159,29 +159,48 @@ def load_quota(
 
     merged_res: ManusQuotaResult | None = None
     if res1 is not None and res2 is not None:
+        sec_credits = res2.effective_credits if res2.is_available else None
+        sec_name = res2.user_name if res2.is_available else ""
+        sec_mem = res2.membership_version if res2.is_available else ""
+        sec_reset = res2.monthly_resets_at if res2.is_available else None
+        sec_err = res2.error_message if not res2.is_available else None
+
+        # If res2 transiently failed, preserve previously cached secondary data
+        if sec_credits is None and _CACHED_RESULT is not None and _CACHED_RESULT.secondary_effective_credits is not None:
+            sec_credits = _CACHED_RESULT.secondary_effective_credits
+            sec_name = _CACHED_RESULT.secondary_user_name or "manus-zzn"
+            sec_mem = _CACHED_RESULT.secondary_membership_version or "pro"
+            sec_reset = _CACHED_RESULT.secondary_monthly_resets_at
+            sec_err = None
+
+        prim_credits = res1.effective_credits if res1.is_available else (
+            _CACHED_RESULT.effective_credits if _CACHED_RESULT else 0
+        )
+        prim_avail = res1.is_available or (_CACHED_RESULT.is_available if _CACHED_RESULT else False)
+
         merged_res = ManusQuotaResult(
-            is_available=res1.is_available or res2.is_available,
-            effective_credits=res1.effective_credits,
-            total_credits=res1.total_credits,
-            periodic_credits=res1.periodic_credits,
-            pro_monthly_credits=res1.pro_monthly_credits,
-            free_credits=res1.free_credits,
-            refresh_credits=res1.refresh_credits,
-            max_refresh_credits=res1.max_refresh_credits,
-            next_refresh_time=res1.next_refresh_time,
-            refresh_interval=res1.refresh_interval,
-            membership_version=res1.membership_version,
-            user_name=res1.user_name,
-            email=res1.email,
+            is_available=prim_avail or (sec_credits is not None),
+            effective_credits=prim_credits,
+            total_credits=res1.total_credits if res1.is_available else (_CACHED_RESULT.total_credits if _CACHED_RESULT else 0),
+            periodic_credits=res1.periodic_credits if res1.is_available else (_CACHED_RESULT.periodic_credits if _CACHED_RESULT else 0),
+            pro_monthly_credits=res1.pro_monthly_credits if res1.is_available else (_CACHED_RESULT.pro_monthly_credits if _CACHED_RESULT else 0),
+            free_credits=res1.free_credits if res1.is_available else (_CACHED_RESULT.free_credits if _CACHED_RESULT else 0),
+            refresh_credits=res1.refresh_credits if res1.is_available else (_CACHED_RESULT.refresh_credits if _CACHED_RESULT else 0),
+            max_refresh_credits=res1.max_refresh_credits if res1.is_available else (_CACHED_RESULT.max_refresh_credits if _CACHED_RESULT else 0),
+            next_refresh_time=res1.next_refresh_time if res1.is_available else (_CACHED_RESULT.next_refresh_time if _CACHED_RESULT else ""),
+            refresh_interval=res1.refresh_interval if res1.is_available else (_CACHED_RESULT.refresh_interval if _CACHED_RESULT else "daily"),
+            membership_version=res1.membership_version if res1.is_available else (_CACHED_RESULT.membership_version if _CACHED_RESULT else "pro"),
+            user_name=res1.user_name if res1.is_available else (_CACHED_RESULT.user_name if _CACHED_RESULT else "manus-nick"),
+            email=res1.email if res1.is_available else (_CACHED_RESULT.email if _CACHED_RESULT else ""),
             updated_at=now,
-            monthly_resets_at=res1.monthly_resets_at,
-            error_message=res1.error_message if not res1.is_available else None,
+            monthly_resets_at=res1.monthly_resets_at if res1.is_available else (_CACHED_RESULT.monthly_resets_at if _CACHED_RESULT else None),
+            error_message=res1.error_message if not prim_avail else None,
             is_configured=True,
-            secondary_effective_credits=res2.effective_credits if res2.is_available else None,
-            secondary_membership_version=res2.membership_version if res2.is_available else "",
-            secondary_user_name=res2.user_name if res2.is_available else "",
-            secondary_monthly_resets_at=res2.monthly_resets_at if res2.is_available else None,
-            secondary_error_message=res2.error_message if not res2.is_available else None,
+            secondary_effective_credits=sec_credits,
+            secondary_membership_version=sec_mem,
+            secondary_user_name=sec_name,
+            secondary_monthly_resets_at=sec_reset,
+            secondary_error_message=sec_err,
         )
     elif res1 is not None:
         merged_res = res1
@@ -223,19 +242,22 @@ def _rest_get_json(endpoint: str, token: str) -> tuple[dict[str, Any] | None, st
             headers=headers,
             method="GET",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS, context=_get_ssl_context()) as resp:
-                body = resp.read().decode("utf-8")
-                parsed = json.loads(body)
-                if isinstance(parsed, dict):
-                    data = parsed.get("data") if isinstance(parsed.get("data"), dict) else parsed
-                    return data, None
-        except urllib.error.HTTPError as exc:
-            if exc.code in (401, 403):
-                return None, "API Key 或 Token 无效/已过期"
-            logger.debug("REST GET %s returned %d", url, exc.code)
-        except Exception as exc:
-            logger.debug("REST GET %s failed: %s", url, exc)
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS, context=_get_ssl_context()) as resp:
+                    body = resp.read().decode("utf-8")
+                    parsed = json.loads(body)
+                    if isinstance(parsed, dict):
+                        data = parsed.get("data") if isinstance(parsed.get("data"), dict) else parsed
+                        return data, None
+            except urllib.error.HTTPError as exc:
+                if exc.code in (401, 403):
+                    return None, "API Key 或 Token 无效/已过期"
+                logger.debug("REST GET %s returned %d", url, exc.code)
+                break
+            except Exception as exc:
+                logger.debug("REST GET %s attempt %d failed: %s", url, attempt, exc)
+                time.sleep(0.3)
     return None, "API 请求失败"
 
 
