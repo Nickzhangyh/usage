@@ -179,6 +179,67 @@
       }
       [data-card="deepseek"] { cursor: grab; }
       .hide-deepseek [data-card="deepseek"] { display: none !important; }
+      .quota-dual-row {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 12px !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .quota-dual-row > .row {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+      }
+      .quota-dual-row > .row[hidden] {
+        display: none !important;
+      }
+      .quota-dual-row:has(> .row[hidden]) > .row:not([hidden]) {
+        flex: 1 1 100% !important;
+        border-left: none !important;
+        padding-left: 0 !important;
+      }
+      .quota-dual-row > .row + .row {
+        border-top: none !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12)) !important;
+        padding-left: 12px !important;
+      }
+      .quota-dual-row .row-head {
+        display: flex !important;
+        align-items: baseline !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+        margin-bottom: 4px !important;
+      }
+      .quota-dual-row .row-title {
+        font-size: 13.5px !important;
+        line-height: 16px !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      .quota-dual-row .percent {
+        font-size: 12px !important;
+        line-height: 16px !important;
+        font-weight: 800 !important;
+        white-space: nowrap !important;
+        font-variant-numeric: tabular-nums !important;
+      }
+      .quota-dual-row .reset {
+        margin-top: 4px !important;
+        font-size: 10.5px !important;
+        line-height: 13px !important;
+        font-weight: 600 !important;
+        text-align: right !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        font-variant-numeric: tabular-nums !important;
+      }
     `;
     document.head.appendChild(switchHostStyle);
     let currentLanguage = "en";
@@ -299,7 +360,23 @@
         && row.percent >= CRITICAL_PERCENT;
     }
 
+    function wrapDualQuotaRows() {
+      document.querySelectorAll(".card").forEach((card) => {
+        if (card.matches('[data-card="projects"]') || getComputedStyle(card).display === "grid") return;
+        const session = card.querySelector(':scope > [data-row="session"]');
+        const weekly = card.querySelector(':scope > [data-row="weekly"]');
+        if (session && weekly) {
+          const dualRow = document.createElement("div");
+          dualRow.className = "quota-dual-row";
+          card.insertBefore(dualRow, session);
+          dualRow.appendChild(session);
+          dualRow.appendChild(weekly);
+        }
+      });
+    }
+
     function applyCard(name, rows) {
+      wrapDualQuotaRows();
       renderRow(name, "session", rows && rows.session);
       renderRow(name, "weekly", rows && rows.weekly);
       const cardEl = document.querySelector(`.card[data-card="${name}"]`);

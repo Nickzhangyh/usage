@@ -337,6 +337,68 @@
       white-space: nowrap;
     }
 
+    .quota-dual-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .quota-dual-row > .row {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .quota-dual-row > .row[hidden] {
+      display: none !important;
+    }
+
+    .quota-dual-row:has(> .row[hidden]) > .row:not([hidden]) {
+      flex: 1 1 100%;
+      border-left: none !important;
+      padding-left: 0 !important;
+    }
+
+    .quota-dual-row > .row + .row {
+      border-top: none !important;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      border-left: 1px solid var(--line);
+      padding-left: 12px;
+    }
+
+    .quota-dual-row .row-head {
+      margin-bottom: 4px;
+      gap: 6px;
+    }
+
+    .quota-dual-row .row-title {
+      font-size: 13.5px;
+      line-height: 16px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quota-dual-row .percent {
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 800;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .quota-dual-row .reset {
+      margin-top: 4px;
+      font-size: 10.5px;
+      line-height: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+    }
+
     .row + .row {
       border-top: 1px solid var(--line);
       margin-top: 8px;
@@ -739,8 +801,10 @@
         <h1 data-i18n="claude_name">Claude Code</h1>
         <button class="switch" data-action="switch" data-i18n="switch_panel">⇄ Switch Panel</button>
       </header>
-      <div class="row" data-row="session"></div>
-      <div class="row" data-row="weekly"></div>
+      <div class="quota-dual-row">
+        <div class="row" data-row="session"></div>
+        <div class="row" data-row="weekly"></div>
+      </div>
     </section>
 
     <section class="card" data-card="codex" style="--accent: var(--codex)">
@@ -755,8 +819,10 @@
           </span>
         </div>
       </header>
-      <div class="row" data-row="session"></div>
-      <div class="row" data-row="weekly"></div>
+      <div class="quota-dual-row">
+        <div class="row" data-row="session"></div>
+        <div class="row" data-row="weekly"></div>
+      </div>
     </section>
 
     <section class="card" data-card="agy" style="--accent: var(--agy)">
@@ -772,8 +838,10 @@
           </span>
         </div>
       </header>
-      <div class="row" data-row="session"></div>
-      <div class="row" data-row="weekly"></div>
+      <div class="quota-dual-row">
+        <div class="row" data-row="session"></div>
+        <div class="row" data-row="weekly"></div>
+      </div>
     </section>
 
     <section class="card" data-card="grok" style="--accent: var(--grok)">
