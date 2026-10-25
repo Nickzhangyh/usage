@@ -24,6 +24,7 @@ from menubar.chrome import (
     _claude_menubar_icon,
     _codex_menubar_icon,
     _deepseek_menubar_icon,
+    _duoyuanx_menubar_icon,
     _grok_menubar_icon,
     _manus_menubar_icon,
     _menubar_icon_attachment_string,
@@ -95,7 +96,7 @@ def _format_menubar_percent(rem: float | None) -> str:
 
 def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
     title = NSMutableAttributedString.alloc().init()
-    if not state.hide_claude:
+    if not state.hide_claude and getattr(state, "show_claude_menubar", True):
         claude_rem = (
             None
             if state.claude_session.percent is None
@@ -104,19 +105,19 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         claude_percent = _format_menubar_percent(claude_rem)
         title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {claude_percent}"))
-    if not state.hide_codex and (app.codex_5h_pct is not None or state.hide_claude):
+    if not state.hide_codex and getattr(state, "show_codex_menubar", True) and (app.codex_5h_pct is not None or state.hide_claude or not getattr(state, "show_claude_menubar", True)):
         codex_rem = (
             None
             if app.codex_5h_pct is None
             else max(0.0, 100.0 - float(app.codex_5h_pct))
         )
         codex_percent = _format_menubar_percent(codex_rem)
-        if not state.hide_claude:
+        if title.length() > 0:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_codex_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {codex_percent}"))
     agy_session_percent = state.agy_session.percent
-    agy_visible = not state.hide_agy and agy_session_percent is not None
+    agy_visible = not state.hide_agy and getattr(state, "show_agy_menubar", True) and agy_session_percent is not None
     if agy_visible:
         assert agy_session_percent is not None
         agy_rem = max(0.0, 100.0 - agy_session_percent)
@@ -126,7 +127,7 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         title.appendAttributedString_(_menubar_icon_attachment_string(_agy_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, f" {agy_percent}"))
     grok_weekly_percent = state.grok_weekly.percent
-    grok_visible = not state.hide_grok and grok_weekly_percent is not None
+    grok_visible = not state.hide_grok and getattr(state, "show_grok_menubar", True) and grok_weekly_percent is not None
     if grok_visible:
         assert grok_weekly_percent is not None
         grok_rem = max(0.0, 100.0 - grok_weekly_percent)
@@ -151,10 +152,15 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
         title.appendAttributedString_(_menubar_icon_attachment_string(_deepseek_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, ds_text))
     manus_data = state.manus
-    manus_visible = not state.hide_manus and manus_data and (
-        manus_data.get("available")
-        or int(manus_data.get("effectiveCredits", 0) or 0) > 0
-        or manus_data.get("secondaryEffectiveCredits") is not None
+    manus_visible = (
+        not state.hide_manus
+        and getattr(state, "show_manus_menubar", True)
+        and manus_data
+        and (
+            manus_data.get("available")
+            or int(manus_data.get("effectiveCredits", 0) or 0) > 0
+            or manus_data.get("secondaryEffectiveCredits") is not None
+        )
     )
     if manus_visible:
         c1 = int(manus_data.get("effectiveCredits", 0) or 0)
@@ -167,8 +173,23 @@ def _menubar_attributed_title(app: _TitleApp, state: PopoverState) -> Any:
             title.appendAttributedString_(_menubar_text_string(app, "  "))
         title.appendAttributedString_(_menubar_icon_attachment_string(_manus_menubar_icon()))
         title.appendAttributedString_(_menubar_text_string(app, manus_text))
+    duoyuanx_data = state.duoyuanx
+    duoyuanx_visible = (
+        not state.hide_duoyuanx
+        and getattr(state, "show_duoyuanx_menubar", False)
+        and duoyuanx_data
+        and duoyuanx_data.get("configured")
+    )
+    if duoyuanx_visible:
+        bal = float(duoyuanx_data.get("balance", 0.0) or 0.0)
+        sym = duoyuanx_data.get("currencySymbol", "$")
+        dyx_text = f" {sym}{int(bal)}" if bal.is_integer() else f" {sym}{bal:.2f}"
+        if title.length() > 0:
+            title.appendAttributedString_(_menubar_text_string(app, "  "))
+        title.appendAttributedString_(_menubar_icon_attachment_string(_duoyuanx_menubar_icon()))
+        title.appendAttributedString_(_menubar_text_string(app, dyx_text))
     if title.length() == 0:
-        # Both providers hidden: keep a recognizable, clickable status item.
+        # All providers hidden or unchecked: keep a recognizable, clickable status item.
         title.appendAttributedString_(_menubar_icon_attachment_string(_claude_menubar_icon()))
     return title
 
@@ -190,24 +211,24 @@ def _set_button_title(app: _TitleApp, state: PopoverState) -> None:
 
 def _compose_title(app: _TitleApp, state: PopoverState) -> str:
     parts: list[str] = []
-    if not state.hide_claude:
+    if not state.hide_claude and getattr(state, "show_claude_menubar", True):
         claude_rem = (
             None
             if state.claude_session.percent is None
             else max(0.0, 100.0 - state.claude_session.percent)
         )
         parts.append(_format_menubar_percent(claude_rem))
-    if not state.hide_codex and (app.codex_5h_pct is not None or state.hide_claude):
+    if not state.hide_codex and getattr(state, "show_codex_menubar", True) and (app.codex_5h_pct is not None or state.hide_claude or not getattr(state, "show_claude_menubar", True)):
         codex_rem = (
             None
             if app.codex_5h_pct is None
             else max(0.0, 100.0 - float(app.codex_5h_pct))
         )
         parts.append(_format_menubar_percent(codex_rem))
-    if not state.hide_agy and state.agy_session.percent is not None:
+    if not state.hide_agy and getattr(state, "show_agy_menubar", True) and state.agy_session.percent is not None:
         agy_rem = max(0.0, 100.0 - state.agy_session.percent)
         parts.append(_format_menubar_percent(agy_rem))
-    if not state.hide_grok and state.grok_weekly.percent is not None:
+    if not state.hide_grok and getattr(state, "show_grok_menubar", True) and state.grok_weekly.percent is not None:
         grok_rem = max(0.0, 100.0 - state.grok_weekly.percent)
         parts.append(_format_menubar_percent(grok_rem))
     if (
@@ -219,10 +240,15 @@ def _compose_title(app: _TitleApp, state: PopoverState) -> str:
         int_bal = int(round(float(state.deepseek.get("totalBalance", 0.0) or 0.0)))
         sym = state.deepseek.get("currencySymbol", "¥")
         parts.append(f"{sym}{int_bal}")
-    if not state.hide_manus and state.manus and (
-        state.manus.get("available")
-        or int(state.manus.get("effectiveCredits", 0) or 0) > 0
-        or state.manus.get("secondaryEffectiveCredits") is not None
+    if (
+        not state.hide_manus
+        and getattr(state, "show_manus_menubar", True)
+        and state.manus
+        and (
+            state.manus.get("available")
+            or int(state.manus.get("effectiveCredits", 0) or 0) > 0
+            or state.manus.get("secondaryEffectiveCredits") is not None
+        )
     ):
         c1 = int(state.manus.get("effectiveCredits", 0) or 0)
         c2 = state.manus.get("secondaryEffectiveCredits")
@@ -230,5 +256,14 @@ def _compose_title(app: _TitleApp, state: PopoverState) -> str:
             parts.append(f"{_format_compact_credits(c1)}/{_format_compact_credits(c2)}")
         else:
             parts.append(_format_compact_credits(c1))
-    # Both providers hidden: keep a recognizable, clickable status item.
+    if (
+        not state.hide_duoyuanx
+        and getattr(state, "show_duoyuanx_menubar", False)
+        and state.duoyuanx
+        and state.duoyuanx.get("configured")
+    ):
+        bal = float(state.duoyuanx.get("balance", 0.0) or 0.0)
+        sym = state.duoyuanx.get("currencySymbol", "$")
+        parts.append(f"{sym}{int(bal)}" if bal.is_integer() else f"{sym}{bal:.2f}")
+    # All providers hidden or unchecked: keep a recognizable, clickable status item.
     return " · ".join(parts) if parts else "usage"

@@ -561,7 +561,16 @@
     "credits_unit": "點",
     "hide_projects": "專案用量",
     "hide_footer": "底部狀態列",
-    "show_deepseek_in_menubar": "在選單列顯示 DeepSeek 金額"
+    "show_deepseek_in_menubar": "在選單列顯示 DeepSeek 金額",
+    "duoyuanx_name": "多元X",
+    "configure_duoyuanx": "設定 多元X API...",
+    "configure_duoyuanx_title": "設定 多元X API",
+    "configure_duoyuanx_info": "支援 duoyuanx.com / deepwl.cn 官方介面",
+    "duoyuanx_api_key_prompt": "API Key（以 sk- 開頭）：",
+    "duoyuanx_base_url_prompt": "Base URL（留空為 https://duoyuanx.com）：",
+    "show_duoyuanx_in_menubar": "在選單列顯示 多元X 金額",
+    "duoyuanx_used": "已用",
+    "menubar_visibility_menu": "選單列顯示"
   },
   "en": {
     "panel_default_name": "Default",
@@ -1125,7 +1134,16 @@
     "credits_unit": "pts",
     "hide_projects": "Project Usage",
     "hide_footer": "Footer Status",
-    "show_deepseek_in_menubar": "Show DeepSeek in Menu Bar"
+    "show_deepseek_in_menubar": "Show DeepSeek in Menu Bar",
+    "duoyuanx_name": "DuoyuanX",
+    "configure_duoyuanx": "Configure DuoyuanX API...",
+    "configure_duoyuanx_title": "Configure DuoyuanX API",
+    "configure_duoyuanx_info": "Supports duoyuanx.com / deepwl.cn official API",
+    "duoyuanx_api_key_prompt": "API Key (starts with sk-):",
+    "duoyuanx_base_url_prompt": "Base URL (leave blank for https://duoyuanx.com):",
+    "show_duoyuanx_in_menubar": "Show DuoyuanX in Menu Bar",
+    "duoyuanx_used": "Used",
+    "menubar_visibility_menu": "Show in Menu Bar"
   },
   "zh-CN": {
     "panel_default_name": "默认",
@@ -1689,7 +1707,16 @@
     "credits_unit": "点",
     "hide_projects": "项目用量",
     "hide_footer": "底部状态栏",
-    "show_deepseek_in_menubar": "在任务栏显示 DeepSeek 金额"
+    "show_deepseek_in_menubar": "在任务栏显示 DeepSeek 金额",
+    "duoyuanx_name": "多元X",
+    "configure_duoyuanx": "设置 多元X API...",
+    "configure_duoyuanx_title": "设置 多元X API",
+    "configure_duoyuanx_info": "支持 duoyuanx.com / deepwl.cn 官方接口",
+    "duoyuanx_api_key_prompt": "API Key（以 sk- 开头）：",
+    "duoyuanx_base_url_prompt": "Base URL（留空为 https://duoyuanx.com）：",
+    "show_duoyuanx_in_menubar": "在任务栏显示 多元X 金额",
+    "duoyuanx_used": "已用",
+    "menubar_visibility_menu": "任务栏显示"
   },
   "ja": {
     "panel_default_name": "デフォルト",
@@ -2253,7 +2280,16 @@
     "credits_unit": "pt",
     "hide_projects": "プロジェクト利用量",
     "hide_footer": "フッター",
-    "show_deepseek_in_menubar": "メニューバーにDeepSeek残高を表示"
+    "show_deepseek_in_menubar": "メニューバーにDeepSeek残高を表示",
+    "duoyuanx_name": "多元X",
+    "configure_duoyuanx": "多元X API を設定...",
+    "configure_duoyuanx_title": "多元X API 設定",
+    "configure_duoyuanx_info": "duoyuanx.com / deepwl.cn 公式APIに対応",
+    "duoyuanx_api_key_prompt": "API キー（sk- で始まる）：",
+    "duoyuanx_base_url_prompt": "ベース URL（空白で https://duoyuanx.com）：",
+    "show_duoyuanx_in_menubar": "メニューバーに多元X残高を表示",
+    "duoyuanx_used": "使用済み",
+    "menubar_visibility_menu": "メニューバー表示"
   },
   "ko": {
     "panel_default_name": "기본",
@@ -2817,6 +2853,15 @@
     "credits_unit": "pt",
     "hide_projects": "프로젝트 사용량",
     "hide_footer": "하단 상태 표시줄",
-    "show_deepseek_in_menubar": "메뉴 막대에 DeepSeek 잔액 표시"
+    "show_deepseek_in_menubar": "메뉴 막대에 DeepSeek 잔액 표시",
+    "duoyuanx_name": "다원X (DuoyuanX)",
+    "configure_duoyuanx": "DuoyuanX API 설정...",
+    "configure_duoyuanx_title": "DuoyuanX API 설정",
+    "configure_duoyuanx_info": "duoyuanx.com / deepwl.cn 공식 API 지원",
+    "duoyuanx_api_key_prompt": "API 키 (sk- 로 시작):",
+    "duoyuanx_base_url_prompt": "기본 URL (공백 시 https://duoyuanx.com):",
+    "show_duoyuanx_in_menubar": "메뉴 막대에 DuoyuanX 잔액 표시",
+    "duoyuanx_used": "사용됨",
+    "menubar_visibility_menu": "메뉴 막대 표시"
   }
 }

@@ -90,21 +90,27 @@ from menubar.prefs import (
     _deepseek_api_key,
     _deepseek_base_url,
     _deepseek_menubar_enabled,
+    _duoyuanx_api_key,
+    _duoyuanx_base_url,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
     _hide_deepseek_enabled,
+    _hide_duoyuanx_enabled,
     _hide_footer_enabled,
     _hide_grok_enabled,
     _hide_manus_enabled,
     _hide_projects_enabled,
     _manus_token,
     _manus_web_token,
+    _menubar_provider_visible,
     _quota_card_order,
     _quota_notification_thresholds,
     _quota_notifications_enabled,
     _save_deepseek_config,
+    _save_duoyuanx_config,
     _save_manus_config,
+    _save_menubar_provider_visible,
     _window_keeper_enabled,
 )
 from menubar.state import (
@@ -614,11 +620,25 @@ class AppDelegate(NSObject):
             sender, "hide_deepseek_section", "hide_deepseek", _hide_deepseek_enabled
         )
 
+    def toggleHideDuoyuanX_(self, sender: Any) -> None:
+        self._toggle_hide_section(
+            sender, "hide_duoyuanx_section", "hide_duoyuanx", _hide_duoyuanx_enabled
+        )
+
+    def toggleMenubarProvider_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        provider = str(sender.representedObject())
+        new_val = not _menubar_provider_visible(provider)
+        _save_menubar_provider_visible(provider, new_val)
+        if hasattr(sender, "setState_"):
+            sender.setState_(1 if new_val else 0)
+        setattr(self.latest_state, f"show_{provider}_menubar", new_val)
+        menubar_title._set_button_title(self, self.latest_state)
+
     def toggleShowDeepSeekMenubar_(self, sender: Any) -> None:
         self._mark_switch_menu_action()
-        from menubar.prefs import _deepseek_menubar_enabled, _save_deepseek_menubar_enabled
-        new_val = not _deepseek_menubar_enabled()
-        _save_deepseek_menubar_enabled(new_val)
+        new_val = not _menubar_provider_visible("deepseek")
+        _save_menubar_provider_visible("deepseek", new_val)
         if hasattr(sender, "setState_"):
             sender.setState_(1 if new_val else 0)
         self.latest_state.show_deepseek_menubar = new_val
@@ -733,6 +753,64 @@ class AppDelegate(NSObject):
             new_token = str(token_input.stringValue()).strip()
             new_web_token = str(token2_input.stringValue()).strip()
             _save_manus_config(new_token, new_web_token)
+            self._refresh()
+
+    def configureDuoyuanX_(self, sender: Any) -> None:
+        self._mark_switch_menu_action()
+        from AppKit import (
+            NSAlert,
+            NSApp,
+            NSButton,
+            NSMakeRect,
+            NSTextField,
+            NSView,
+        )
+
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(_t(self.language, "configure_duoyuanx_title"))
+        alert.setInformativeText_(_t(self.language, "configure_duoyuanx_info"))
+        alert.addButtonWithTitle_(_t(self.language, "save"))
+        alert.addButtonWithTitle_(_t(self.language, "cancel"))
+
+        container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 320, 125))
+
+        key_label = NSTextField.labelWithString_(_t(self.language, "duoyuanx_api_key_prompt"))
+        key_label.setFrame_(NSMakeRect(0, 102, 320, 18))
+        container.addSubview_(key_label)
+
+        key_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 78, 320, 22))
+        key_input.setStringValue_(_duoyuanx_api_key())
+        key_input.setPlaceholderString_("sk-...")
+        container.addSubview_(key_input)
+
+        url_label = NSTextField.labelWithString_(_t(self.language, "duoyuanx_base_url_prompt"))
+        url_label.setFrame_(NSMakeRect(0, 54, 320, 18))
+        container.addSubview_(url_label)
+
+        url_input = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 30, 320, 22))
+        url_input.setStringValue_(_duoyuanx_base_url())
+        url_input.setPlaceholderString_("https://duoyuanx.com")
+        container.addSubview_(url_input)
+
+        menubar_checkbox = NSButton.alloc().initWithFrame_(NSMakeRect(0, 2, 320, 22))
+        menubar_checkbox.setButtonType_(3)  # Checkbox
+        menubar_checkbox.setTitle_(_t(self.language, "show_duoyuanx_in_menubar"))
+        menubar_checkbox.setState_(1 if _menubar_provider_visible("duoyuanx") else 0)
+        container.addSubview_(menubar_checkbox)
+
+        alert.setAccessoryView_(container)
+        alert.window().setInitialFirstResponder_(key_input)
+
+        NSApp.activateIgnoringOtherApps_(True)
+        response = alert.runModal()
+        if response == 1000:
+            new_key = str(key_input.stringValue()).strip()
+            new_url = str(url_input.stringValue()).strip()
+            _save_duoyuanx_config(new_key, new_url)
+            show_mb = bool(menubar_checkbox.state() == 1)
+            _save_menubar_provider_visible("duoyuanx", show_mb)
+            self.latest_state.show_duoyuanx_menubar = show_mb
+            menubar_title._set_button_title(self, self.latest_state)
             self._refresh()
 
     def toggleHideProjects_(self, sender: Any) -> None:

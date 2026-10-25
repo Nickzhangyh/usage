@@ -21,8 +21,9 @@ import quota.codex_window_keeper as codex_window_keeper
 import quota.window_keeper as window_keeper
 from loaders.history_loader import UsageEntry
 from adapters import deepseek as adapter_deepseek
+from adapters import duoyuanx as adapter_duoyuanx
 from adapters import manus as adapter_manus
-from loaders import deepseek_loader, manus_loader
+from loaders import deepseek_loader, duoyuanx_loader, manus_loader
 from menubar import agy as menubar_agy
 from menubar import grok as menubar_grok
 from menubar import state as menubar_state
@@ -30,16 +31,20 @@ from menubar.prefs import (
     _deepseek_api_key,
     _deepseek_base_url,
     _deepseek_menubar_enabled,
+    _duoyuanx_api_key,
+    _duoyuanx_base_url,
     _hide_agy_enabled,
     _hide_claude_enabled,
     _hide_codex_enabled,
     _hide_deepseek_enabled,
+    _hide_duoyuanx_enabled,
     _hide_footer_enabled,
     _hide_grok_enabled,
     _hide_manus_enabled,
     _hide_projects_enabled,
     _manus_token,
     _manus_web_token,
+    _menubar_provider_visible,
     _quota_card_order,
 )
 from quota.burn_rate import BurnRateTracker
@@ -208,6 +213,18 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
     except Exception:
         if os.environ.get("USAGE_DEBUG") == "1":
             logger.warning("manus quota load failed", exc_info=True)
+    hide_duoyuanx = _hide_duoyuanx_enabled()
+    duoyuanx_payload = None
+    dyx_key = _duoyuanx_api_key()
+    if dyx_key:
+        dyx_base = _duoyuanx_base_url()
+        try:
+            dyx_result = duoyuanx_loader.load_quota(dyx_key, dyx_base)
+            if dyx_result is not None:
+                duoyuanx_payload = adapter_duoyuanx.format_duoyuanx_card(dyx_result, app.language)
+        except Exception:
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("duoyuanx quota load failed", exc_info=True)
     try:
         started_at = time.monotonic() if sources.debug_timing else 0.0
         outcome = asyncio.run(app._fetch())
@@ -251,7 +268,14 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             hide_grok=hide_grok,
             hide_deepseek=hide_deepseek,
             hide_manus=hide_manus,
-            show_deepseek_menubar=_deepseek_menubar_enabled(),
+            hide_duoyuanx=hide_duoyuanx,
+            show_claude_menubar=_menubar_provider_visible("claude"),
+            show_codex_menubar=_menubar_provider_visible("codex"),
+            show_agy_menubar=_menubar_provider_visible("agy"),
+            show_grok_menubar=_menubar_provider_visible("grok"),
+            show_deepseek_menubar=_menubar_provider_visible("deepseek"),
+            show_manus_menubar=_menubar_provider_visible("manus"),
+            show_duoyuanx_menubar=_menubar_provider_visible("duoyuanx"),
             hide_projects=hide_projects,
             hide_footer=hide_footer,
             codex_stale=codex_stale,
@@ -260,6 +284,7 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
             grok_stale=grok_projection.stale,
             deepseek=deepseek_payload,
             manus=manus_payload,
+            duoyuanx=duoyuanx_payload,
             card_order=card_order,
             history_error=menubar_state.history_load_error_state(
                 app._history_load_error_key, app.language
@@ -293,6 +318,7 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
         state.grok_stale = grok_projection.stale
         state.deepseek = deepseek_payload
         state.manus = manus_payload
+        state.duoyuanx = duoyuanx_payload
         state.history_error = menubar_state.history_load_error_state(
             app._history_load_error_key, app.language
         )
@@ -310,7 +336,14 @@ def build_result(app: _RefreshApp, sources: RefreshSources) -> dict[str, Any]:
         state.hide_grok = hide_grok
         state.hide_deepseek = hide_deepseek
         state.hide_manus = hide_manus
-        state.show_deepseek_menubar = _deepseek_menubar_enabled()
+        state.hide_duoyuanx = hide_duoyuanx
+        state.show_claude_menubar = _menubar_provider_visible("claude")
+        state.show_codex_menubar = _menubar_provider_visible("codex")
+        state.show_agy_menubar = _menubar_provider_visible("agy")
+        state.show_grok_menubar = _menubar_provider_visible("grok")
+        state.show_deepseek_menubar = _menubar_provider_visible("deepseek")
+        state.show_manus_menubar = _menubar_provider_visible("manus")
+        state.show_duoyuanx_menubar = _menubar_provider_visible("duoyuanx")
         state.card_order = card_order
 
     return {

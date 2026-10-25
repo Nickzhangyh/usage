@@ -556,6 +556,73 @@
       }
     }
 
+    function ensureDuoyuanxCard() {
+      let card = document.querySelector('[data-card="duoyuanx"]');
+      if (card) return card;
+      const wrap = document.querySelector("main.wrap");
+      if (!wrap) return null;
+      card = document.createElement("section");
+      card.className = "card";
+      card.dataset.card = "duoyuanx";
+      card.style.setProperty("--accent", "#2563EB");
+      card.innerHTML = `
+        <header class="header brand" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div class="brand-icon duoyuanx-icon" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(37,99,235,0.15);color:#2563EB;flex:none;overflow:hidden;">
+            <svg fill="currentColor" viewBox="0 0 26 17" width="20" height="14" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0.407 0L5.25 0L13.17 12.255L8.389 12.255L0.407 0Z"/>
+              <path d="M6.612 0L11.515 0L12.68 1.97C12.53 2.799 12.136 3.569 11.514 4.225L10.966 4.805L11.745 4.633C12.756 4.411 13.739 4.521 14.614 4.94L19.376 12.255L14.594 12.255L6.612 0Z"/>
+              <path d="M0 6.866L3.974 6.866L3.974 12.255L0 12.255L0 6.866Z"/>
+            </svg>
+          </div>
+          <div class="header-copy" style="min-width:0;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <h1 data-i18n="duoyuanx_name" style="margin:0;font-size:16px;font-weight:600;">多元X</h1>
+              <span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(37,99,235,0.18);color:#2563EB;">API</span>
+            </div>
+          </div>
+          <div class="duoyuanx-badge" data-duoyuanx-balance style="font-weight:700;font-size:14px;color:#2563EB;margin-left:auto;white-space:nowrap;">--</div>
+        </header>
+        <div class="row" data-row="duoyuanx-details" style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px;opacity:0.85;">
+          <span data-duoyuanx-sub></span>
+          <span data-duoyuanx-used></span>
+        </div>
+      `;
+      const projects = document.querySelector('[data-card="projects"]');
+      if (projects) {
+        wrap.insertBefore(card, projects);
+      } else {
+        wrap.appendChild(card);
+      }
+      return card;
+    }
+
+    function renderDuoyuanx(duoyuanx) {
+      if (!duoyuanx || !duoyuanx.configured) {
+        const card = document.querySelector('[data-card="duoyuanx"]');
+        if (card) card.style.display = "none";
+        return;
+      }
+      const card = ensureDuoyuanxCard();
+      if (!card) return;
+      card.style.display = "";
+
+      const balEl = card.querySelector('[data-duoyuanx-balance]');
+      if (balEl) {
+        balEl.textContent = duoyuanx.formattedBalance || "--";
+      }
+
+      const subEl = card.querySelector('[data-duoyuanx-sub]');
+      if (subEl) {
+        const quotaFmt = duoyuanx.totalAvailableQuota ? Number(duoyuanx.totalAvailableQuota).toLocaleString() : "0";
+        subEl.textContent = `${duoyuanx.name ? duoyuanx.name + " · " : ""}${quotaFmt} 配额`;
+      }
+
+      const usedEl = card.querySelector('[data-duoyuanx-used]');
+      if (usedEl) {
+        usedEl.textContent = `${t("duoyuanx_used") || "已用"}: ${duoyuanx.formattedUsed || "$0.00"}`;
+      }
+    }
+
     function renderHistoryLoadError(err) {
       const el = document.querySelector("[data-history-error]");
       const textEl = document.querySelector("[data-history-error-text]");
@@ -656,6 +723,10 @@
       .hide-manus [data-card="manus"] {
         display: none !important;
       }
+      html.hide-duoyuanx [data-card="duoyuanx"],
+      .hide-duoyuanx [data-card="duoyuanx"] {
+        display: none !important;
+      }
       html.hide-projects [data-card="projects"],
       .hide-projects [data-card="projects"] {
         display: none !important;
@@ -679,6 +750,7 @@
       document.documentElement.classList.toggle('hide-grok', !!state.hideGrok);
       document.documentElement.classList.toggle('hide-deepseek', !!state.hideDeepseek);
       document.documentElement.classList.toggle('hide-manus', !!state.hideManus);
+      document.documentElement.classList.toggle('hide-duoyuanx', !!state.hideDuoyuanx);
       document.documentElement.classList.toggle('hide-projects', !!state.hideProjects);
       document.documentElement.classList.toggle('hide-footer', !!state.hideFooter);
       applyCardOrder(state.cardOrder);
@@ -693,6 +765,7 @@
       renderGrok(state.grok);
       renderDeepSeek(state.deepseek);
       renderManus(state.manus);
+      renderDuoyuanx(state.duoyuanx);
       renderHistoryLoadError(state.historyError);
       latestState = state;
       renderProjects(

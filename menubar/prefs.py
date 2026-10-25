@@ -13,10 +13,36 @@ try:
 except ImportError:
     from usage_common.prefs import _load_preferences, _save_preferences
 
-DEFAULT_QUOTA_CARD_ORDER = ("claude", "codex", "agy", "grok", "deepseek", "manus")
+DEFAULT_QUOTA_CARD_ORDER = ("claude", "codex", "agy", "grok", "deepseek", "manus", "duoyuanx")
 DEFAULT_PANEL_FLAVOR = "mocha"
 PANEL_FLAVORS = ("latte", "frappe", "macchiato", "mocha")
 AGY_QUOTA_GROUPS = ("gemini", "claude_gpt")
+
+ALL_MENUBAR_PROVIDERS = ("claude", "codex", "agy", "grok", "deepseek", "manus", "duoyuanx")
+_MENUBAR_DEFAULTS: dict[str, bool] = {
+    "claude": True,
+    "codex": True,
+    "agy": True,
+    "grok": True,
+    "deepseek": False,
+    "manus": True,
+    "duoyuanx": False,
+}
+
+
+def _menubar_provider_visible(provider: str, prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    key = f"show_{provider}_in_menubar"
+    val = data.get(key)
+    if val is not None:
+        return bool(val)
+    return _MENUBAR_DEFAULTS.get(provider, True)
+
+
+def _save_menubar_provider_visible(provider: str, visible: bool) -> None:
+    prefs = _load_preferences()
+    prefs[f"show_{provider}_in_menubar"] = bool(visible)
+    _save_preferences(prefs)
 
 
 def _valid_agy_quota_group(value: object) -> str | None:
@@ -93,13 +119,34 @@ def _save_deepseek_config(api_key: str, base_url: str) -> None:
 
 
 def _deepseek_menubar_enabled(prefs: Mapping[str, object] | None = None) -> bool:
-    data = _resolved_preferences(prefs)
-    return data.get("show_deepseek_in_menubar") is True
+    return _menubar_provider_visible("deepseek", prefs)
 
 
 def _save_deepseek_menubar_enabled(enabled: bool) -> None:
+    _save_menubar_provider_visible("deepseek", enabled)
+
+
+def _hide_duoyuanx_enabled(prefs: Mapping[str, object] | None = None) -> bool:
+    data = _resolved_preferences(prefs)
+    return data.get("hide_duoyuanx_section") is True
+
+
+def _duoyuanx_api_key(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("duoyuanx_api_key")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _duoyuanx_base_url(prefs: Mapping[str, object] | None = None) -> str:
+    data = _resolved_preferences(prefs)
+    val = data.get("duoyuanx_base_url")
+    return str(val).strip() if isinstance(val, str) else ""
+
+
+def _save_duoyuanx_config(api_key: str, base_url: str) -> None:
     prefs = _load_preferences()
-    prefs["show_deepseek_in_menubar"] = bool(enabled)
+    prefs["duoyuanx_api_key"] = api_key.strip()
+    prefs["duoyuanx_base_url"] = base_url.strip()
     _save_preferences(prefs)
 
 

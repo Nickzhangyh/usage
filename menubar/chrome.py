@@ -25,6 +25,8 @@ _DEEPSEEK_MENUBAR_ICON: Any = None
 _DEEPSEEK_MENUBAR_ICON_LOADED = False
 _MANUS_MENUBAR_ICON: Any = None
 _MANUS_MENUBAR_ICON_LOADED = False
+_DUOYUANX_MENUBAR_ICON: Any = None
+_DUOYUANX_MENUBAR_ICON_LOADED = False
 
 
 class _NoopAlert:
@@ -147,6 +149,19 @@ def _manus_menubar_icon() -> Any:
             if os.environ.get("USAGE_DEBUG") == "1":
                 logger.warning("load Manus menubar icon failed", exc_info=True)
     return _MANUS_MENUBAR_ICON
+
+
+def _duoyuanx_menubar_icon() -> Any:
+    global _DUOYUANX_MENUBAR_ICON, _DUOYUANX_MENUBAR_ICON_LOADED
+    if not _DUOYUANX_MENUBAR_ICON_LOADED:
+        _DUOYUANX_MENUBAR_ICON_LOADED = True
+        try:
+            _DUOYUANX_MENUBAR_ICON = _load_menubar_brand_icon("duoyuanx_color_menubar.png", is_template=False)
+        except Exception:
+            _DUOYUANX_MENUBAR_ICON = None
+            if os.environ.get("USAGE_DEBUG") == "1":
+                logger.warning("load DuoyuanX menubar icon failed", exc_info=True)
+    return _DUOYUANX_MENUBAR_ICON
 
 
 def _menubar_icon_attachment_string(image: Any) -> Any:

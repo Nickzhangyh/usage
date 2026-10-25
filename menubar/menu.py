@@ -18,10 +18,12 @@ from menubar.prefs import (
     _hide_claude_enabled,
     _hide_codex_enabled,
     _hide_deepseek_enabled,
+    _hide_duoyuanx_enabled,
     _hide_footer_enabled,
     _hide_grok_enabled,
     _hide_manus_enabled,
     _hide_projects_enabled,
+    _menubar_provider_visible,
     _quota_notifications_enabled,
     _window_keeper_enabled,
 )
@@ -126,6 +128,12 @@ def build_switch_menu(app: _SwitchMenuApp, sender: Any) -> None:
             state=_hide_manus_enabled(),
         )
     )
+    hide_submenu.addItem_(
+        build_menu_item(
+            app.language, "duoyuanx_name", "toggleHideDuoyuanX:", target=app,
+            state=_hide_duoyuanx_enabled(),
+        )
+    )
     hide_submenu.addItem_(NSMenuItem.separatorItem())
     hide_submenu.addItem_(
         build_menu_item(
@@ -144,6 +152,64 @@ def build_switch_menu(app: _SwitchMenuApp, sender: Any) -> None:
     )
     hide_parent.setSubmenu_(hide_submenu)
     menu.addItem_(hide_parent)
+
+    # Menubar Visibility Submenu ("hide menubas"): allows toggling any AI tool in the top menubar independently
+    menubar_submenu = NSMenu.alloc().initWithTitle_(_t(app.language, "menubar_visibility_menu"))
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "claude_name", "toggleMenubarProvider:", target=app,
+            represented="claude",
+            state=_menubar_provider_visible("claude"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "codex_name", "toggleMenubarProvider:", target=app,
+            represented="codex",
+            state=_menubar_provider_visible("codex"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "agy_name", "toggleMenubarProvider:", target=app,
+            represented="agy",
+            state=_menubar_provider_visible("agy"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "grok_name", "toggleMenubarProvider:", target=app,
+            represented="grok",
+            state=_menubar_provider_visible("grok"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "deepseek_name", "toggleMenubarProvider:", target=app,
+            represented="deepseek",
+            state=_menubar_provider_visible("deepseek"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "manus_name", "toggleMenubarProvider:", target=app,
+            represented="manus",
+            state=_menubar_provider_visible("manus"),
+        )
+    )
+    menubar_submenu.addItem_(
+        build_menu_item(
+            app.language, "duoyuanx_name", "toggleMenubarProvider:", target=app,
+            represented="duoyuanx",
+            state=_menubar_provider_visible("duoyuanx"),
+        )
+    )
+    menubar_parent = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        _t(app.language, "menubar_visibility_menu"), "", ""
+    )
+    menubar_parent.setSubmenu_(menubar_submenu)
+    menu.addItem_(menubar_parent)
+
     menu.addItem_(
         build_menu_item(
             app.language, "configure_deepseek", "configureDeepSeek:", target=app,
@@ -151,13 +217,12 @@ def build_switch_menu(app: _SwitchMenuApp, sender: Any) -> None:
     )
     menu.addItem_(
         build_menu_item(
-            app.language, "show_deepseek_in_menubar", "toggleShowDeepSeekMenubar:", target=app,
-            state=_deepseek_menubar_enabled(),
+            app.language, "configure_manus", "configureManus:", target=app,
         )
     )
     menu.addItem_(
         build_menu_item(
-            app.language, "configure_manus", "configureManus:", target=app,
+            app.language, "configure_duoyuanx", "configureDuoyuanX:", target=app,
         )
     )
     # Plain on/off switches sit together in the second group.

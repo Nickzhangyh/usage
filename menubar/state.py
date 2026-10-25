@@ -27,9 +27,11 @@ from menubar.prefs import (
     _hide_claude_enabled,
     _hide_codex_enabled,
     _hide_deepseek_enabled,
+    _hide_duoyuanx_enabled,
     _hide_footer_enabled,
     _hide_manus_enabled,
     _hide_projects_enabled,
+    _menubar_provider_visible,
     _quota_card_order,
 )
 from pricing import calculate_cost
@@ -155,7 +157,14 @@ class PopoverState:
     hide_grok: bool = True
     hide_deepseek: bool = False
     hide_manus: bool = False
+    hide_duoyuanx: bool = False
+    show_claude_menubar: bool = True
+    show_codex_menubar: bool = True
+    show_agy_menubar: bool = True
+    show_grok_menubar: bool = True
     show_deepseek_menubar: bool = False
+    show_manus_menubar: bool = True
+    show_duoyuanx_menubar: bool = False
     hide_projects: bool = False
     hide_footer: bool = False
     codex_stale: CodexStaleState | None = None
@@ -164,7 +173,8 @@ class PopoverState:
     grok_stale: GrokStaleState | None = None
     deepseek: dict[str, Any] | None = None
     manus: dict[str, Any] | None = None
-    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus")
+    duoyuanx: dict[str, Any] | None = None
+    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus", "duoyuanx")
     history_error: HistoryLoadErrorState | None = None
 
 @dataclass(frozen=True, slots=True)
@@ -836,16 +846,24 @@ def build_popover_state(
     hide_grok: bool,
     hide_deepseek: bool = False,
     hide_manus: bool = False,
+    hide_duoyuanx: bool = False,
+    show_claude_menubar: bool = True,
+    show_codex_menubar: bool = True,
+    show_agy_menubar: bool = True,
+    show_grok_menubar: bool = True,
     show_deepseek_menubar: bool = False,
+    show_manus_menubar: bool = True,
+    show_duoyuanx_menubar: bool = False,
     hide_projects: bool = False,
     hide_footer: bool = False,
-    codex_stale: CodexStaleState | None,
+    codex_stale: CodexStaleState | None = None,
     codex_credits: CodexCreditsState | None = None,
-    agy_stale: AgyStaleState | None,
-    grok_stale: GrokStaleState | None,
+    agy_stale: AgyStaleState | None = None,
+    grok_stale: GrokStaleState | None = None,
     deepseek: dict[str, Any] | None = None,
     manus: dict[str, Any] | None = None,
-    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus"),
+    duoyuanx: dict[str, Any] | None = None,
+    card_order: tuple[str, ...] = ("claude", "codex", "agy", "grok", "deepseek", "manus", "duoyuanx"),
     history_error: HistoryLoadErrorState | None = None,
     service_statuses: tuple[ServiceStatus, ...] = (),
 ) -> PopoverState:
@@ -965,7 +983,14 @@ def build_popover_state(
         hide_grok=hide_grok,
         hide_deepseek=hide_deepseek,
         hide_manus=hide_manus,
+        hide_duoyuanx=hide_duoyuanx,
+        show_claude_menubar=show_claude_menubar,
+        show_codex_menubar=show_codex_menubar,
+        show_agy_menubar=show_agy_menubar,
+        show_grok_menubar=show_grok_menubar,
         show_deepseek_menubar=show_deepseek_menubar,
+        show_manus_menubar=show_manus_menubar,
+        show_duoyuanx_menubar=show_duoyuanx_menubar,
         hide_projects=hide_projects,
         hide_footer=hide_footer,
         codex_stale=codex_stale,
@@ -974,6 +999,7 @@ def build_popover_state(
         grok_stale=grok_stale,
         deepseek=deepseek,
         manus=manus,
+        duoyuanx=duoyuanx,
         card_order=card_order,
         history_error=history_error,
     )
@@ -1167,7 +1193,14 @@ def _empty_state(language: str = "en") -> PopoverState:
         hide_grok=True,
         hide_deepseek=_hide_deepseek_enabled(),
         hide_manus=_hide_manus_enabled(),
-        show_deepseek_menubar=_deepseek_menubar_enabled(),
+        hide_duoyuanx=_hide_duoyuanx_enabled(),
+        show_claude_menubar=_menubar_provider_visible("claude"),
+        show_codex_menubar=_menubar_provider_visible("codex"),
+        show_agy_menubar=_menubar_provider_visible("agy"),
+        show_grok_menubar=_menubar_provider_visible("grok"),
+        show_deepseek_menubar=_menubar_provider_visible("deepseek"),
+        show_manus_menubar=_menubar_provider_visible("manus"),
+        show_duoyuanx_menubar=_menubar_provider_visible("duoyuanx"),
         card_order=_quota_card_order(),
     )
 
